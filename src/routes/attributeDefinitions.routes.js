@@ -13,12 +13,22 @@ router.get('/', async (req, res) => {
   res.render('attribute-definitions/index', { attributes, t });
 });
 
+// Var olan tüm grup adlarını (tekrarsız, TR alfabetik) döner —
+// form ekranında datalist önerisi olarak kullanılır.
+async function getDistinctGroups() {
+  const groups = await AttributeDefinition.distinct('group');
+  return groups.filter(Boolean).sort((a, b) => a.localeCompare(b, 'tr'));
+}
+
 // Yeni ekleme formu
-router.get('/new', (req, res) => {
+router.get('/new', async (req, res) => {
+  const existingGroups = await getDistinctGroups();
+
   res.render('attribute-definitions/form', {
     t,
     attribute: null,
     types: AttributeDefinition.TYPES,
+    existingGroups,
     errorMessage: null,
   });
 });
@@ -59,10 +69,12 @@ router.post('/', async (req, res) => {
     const errorMessage =
       err.code === 11000 ? 'Bu key zaten kullanılıyor.' : err.message;
 
+    const existingGroups = await getDistinctGroups();
     res.status(400).render('attribute-definitions/form', {
       t,
       attribute: req.body,
       types: AttributeDefinition.TYPES,
+      existingGroups,
       errorMessage,
     });
   }
@@ -76,10 +88,13 @@ router.get('/:id/duzenle', async (req, res) => {
     return res.status(404).send('Özellik bulunamadı.');
   }
 
+  const existingGroups = await getDistinctGroups();
+
   res.render('attribute-definitions/form', {
     t,
     attribute,
     types: AttributeDefinition.TYPES,
+    existingGroups,
     errorMessage: null,
   });
 });
@@ -125,10 +140,12 @@ router.post('/:id', async (req, res) => {
     const errorMessage =
       err.code === 11000 ? 'Bu key zaten kullanılıyor.' : err.message;
 
+    const existingGroups = await getDistinctGroups();
     res.status(400).render('attribute-definitions/form', {
       t,
       attribute: { _id: req.params.id, ...req.body },
       types: AttributeDefinition.TYPES,
+      existingGroups,
       errorMessage,
     });
   }

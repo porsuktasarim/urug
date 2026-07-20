@@ -59,6 +59,7 @@ module.exports = {
       requiredWhen: 'Bu değerdeyken zorunlu',
     },
     keyHint: 'Sadece harf, rakam ve alt çizgi; harfle başlamalı. Sonradan değiştirilemez (sistem alanı hariç).',
+    groupHint: 'Var olan bir grubu seçebilir ya da yeni bir grup adı yazabilirsin.',
     systemLocked: 'Bu sistem alanı — key/tip/zorunluluk değiştirilemez, silinemez.',
     newTitle: 'Yeni Özellik Ekle',
     editTitle: 'Özelliği Düzenle',

@@ -53,8 +53,15 @@
       <div class="row">
         <div class="col-6 mb-3">
           <label class="form-label"><%= t('attribute.fields.group') %></label>
-          <input type="text" name="group" class="form-control"
-                 value="<%= attribute ? attribute.group : 'Genel' %>">
+          <input type="text" name="group" class="form-control" list="groupSuggestions"
+                 value="<%= attribute ? attribute.group : 'Genel' %>"
+                 autocomplete="off">
+          <datalist id="groupSuggestions">
+            <% existingGroups.forEach(function (g) { %>
+              <option value="<%= g %>"></option>
+            <% }); %>
+          </datalist>
+          <div class="form-text"><%= t('attribute.groupHint') %></div>
         </div>
         <div class="col-6 mb-3">
           <label class="form-label"><%= t('attribute.fields.order') %></label>
