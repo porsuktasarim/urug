@@ -4,6 +4,7 @@ const path = require('path');
 const express = require('express');
 const { connectDB } = require('./config/db');
 const { t } = require('./lang');
+const familyGroupsRouter = require('./routes/familyGroups.routes');
 
 const app = express();
 const PORT = process.env.PORT || 1207;
@@ -22,6 +23,8 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.render('index', { appName: t('common.appName') });
 });
+
+app.use('/aileler', familyGroupsRouter);
 
 async function start() {
   try {

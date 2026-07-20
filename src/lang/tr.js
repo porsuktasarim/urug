@@ -20,12 +20,28 @@ module.exports = {
       edit: 'Düzenle',
       delete: 'Sil',
       search: 'Ara',
+      new: 'Yeni Ekle',
     },
     status: {
       loading: 'Yükleniyor...',
       ok: 'Tamam',
       error: 'Hata',
+      empty: 'Kayıt bulunamadı.',
     },
+    confirm: {
+      delete: 'Bu kaydı silmek istediğinize emin misiniz?',
+    },
+  },
+
+  family: {
+    title: 'Aileler',
+    fields: {
+      name: 'Aile Adı',
+      slug: 'Slug (bağlantı adresi)',
+    },
+    slugHint: 'Boş bırakılırsa aile adından otomatik üretilir. Türkçe karakterler sadeleştirilir.',
+    newTitle: 'Yeni Aile Ekle',
+    editTitle: 'Aileyi Düzenle',
   },
 
   system: {
