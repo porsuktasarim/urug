@@ -5,9 +5,14 @@ const { t } = require('../lang');
 
 const router = express.Router();
 
-// Liste
+// Liste — Türkçe alfabetik sıralama (collation: locale 'tr')
+// MongoDB'nin varsayılan $regex/sort davranışı Türkçe karakterleri
+// (ı/İ/ş/ğ/ç/ö/ü) doğru sıralamaz, bu yüzden collation zorunlu.
 router.get('/', async (req, res) => {
-  const familyGroups = await FamilyGroup.find().sort({ createdAt: -1 });
+  const familyGroups = await FamilyGroup.find()
+    .collation({ locale: 'tr' })
+    .sort({ name: 1 });
+
   res.render('family-groups/index', { familyGroups, t });
 });
 
