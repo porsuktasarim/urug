@@ -28,6 +28,11 @@ const personSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    attributes: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );
