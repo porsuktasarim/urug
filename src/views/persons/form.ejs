@@ -124,6 +124,45 @@
         <a href="/kisiler" class="btn btn-outline-secondary"><%= t('common.actions.cancel') %></a>
       </div>
     </form>
+
+    <% if (person && person._id) { %>
+      <hr class="my-4">
+      <h2 class="h6 text-muted">Akrabalık Bağları</h2>
+
+      <div class="mb-2">
+        <strong>Baba:</strong>
+        <% if (typeof father !== 'undefined' && father) { %>
+          <%= displayName(father) %>
+        <% } else { %>
+          <span class="text-muted">yok</span>
+          <a href="/kisiler/<%= person._id %>/iliski-ekle?type=father" class="btn btn-sm btn-outline-secondary ms-2">Baba Ekle</a>
+        <% } %>
+      </div>
+
+      <div class="mb-2">
+        <strong>Anne:</strong>
+        <% if (typeof mother !== 'undefined' && mother) { %>
+          <%= displayName(mother) %>
+        <% } else { %>
+          <span class="text-muted">yok</span>
+          <a href="/kisiler/<%= person._id %>/iliski-ekle?type=mother" class="btn btn-sm btn-outline-secondary ms-2">Anne Ekle</a>
+        <% } %>
+      </div>
+
+      <div class="mb-2">
+        <strong>Çocuklar:</strong>
+        <% if (typeof children !== 'undefined' && children.length > 0) { %>
+          <ul class="mb-1">
+            <% children.forEach(function (c) { %>
+              <li><%= displayName(c) %></li>
+            <% }); %>
+          </ul>
+        <% } else { %>
+          <span class="text-muted d-block mb-1">yok</span>
+        <% } %>
+        <a href="/kisiler/<%= person._id %>/iliski-ekle?type=child" class="btn btn-sm btn-outline-secondary">Çocuk Ekle</a>
+      </div>
+    <% } %>
   </div>
 
 <%- include('../partials/footer', { t }) %>

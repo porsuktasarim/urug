@@ -2,6 +2,7 @@ const express = require('express');
 const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const AttributeDefinition = require('../models/AttributeDefinition');
+const ParentChild = require('../models/ParentChild');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
 const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { t } = require('../lang');
@@ -192,12 +193,29 @@ router.get('/:id/duzenle', async (req, res) => {
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
 
+  // Mevcut akrabalık bağları (üst soy/alt soy) — form altında gösteriliyor.
+  const parentLinks = await ParentChild.find({ childId: person._id }).populate({
+    path: 'parentId',
+    populate: { path: 'familyGroupId' },
+  });
+  const childLinks = await ParentChild.find({ parentId: person._id }).populate({
+    path: 'childId',
+    populate: { path: 'familyGroupId' },
+  });
+
+  const father = parentLinks.find((l) => l.parentSide === 'father');
+  const mother = parentLinks.find((l) => l.parentSide === 'mother');
+
   res.render('persons/form', {
     t,
     person,
     familyGroups,
     dynamicAttributes,
     attributeValues: attributesToPlainObject(person),
+    father: father ? father.parentId : null,
+    mother: mother ? mother.parentId : null,
+    children: childLinks.map((l) => l.childId),
+    displayName,
     errorMessage: null,
   });
 });

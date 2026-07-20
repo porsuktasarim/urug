@@ -8,6 +8,7 @@ const { t } = require('./lang');
 const familyGroupsRouter = require('./routes/familyGroups.routes');
 const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
 const personsRouter = require('./routes/persons.routes');
+const relationshipsRouter = require('./routes/relationships.routes');
 const personProfileRouter = require('./routes/personProfile.routes');
 
 const app = express();
@@ -31,6 +32,7 @@ app.get('/', (req, res) => {
 app.use('/aileler', familyGroupsRouter);
 app.use('/admin/ozellikler', attributeDefinitionsRouter);
 app.use('/kisiler', personsRouter);
+app.use('/kisiler', relationshipsRouter);
 
 // ÖNEMLİ: Bu route en son mount edilmeli — /:familySlug/:personSlug deseni
 // path segment sayısı bakımından diğer route'larla (ör. /aileler/new)

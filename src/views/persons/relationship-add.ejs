@@ -1,0 +1,176 @@
+<%- include('../partials/header', { title: relationLabel + ' Ekle', t }) %>
+
+  <div style="max-width: 560px;">
+    <h1 class="h4 mb-1"><%= relationLabel %> Ekle</h1>
+    <p class="text-muted small mb-4">
+      <strong><%= displayName(anchorPerson) %></strong> için <%= relationLabel.toLowerCase() %> bağlantısı kuruluyor.
+    </p>
+
+    <% if (errorMessage) { %>
+      <div class="alert alert-danger"><%= errorMessage %></div>
+    <% } %>
+
+    <% if (type === 'child') { %>
+      <div class="mb-4">
+        <label class="form-label">Bu bağlantıda <%= displayName(anchorPerson) %>...</label>
+        <select id="parentSideSelect" class="form-select">
+          <option value="father">Baba tarafı</option>
+          <option value="mother">Anne tarafı</option>
+        </select>
+      </div>
+    <% } %>
+
+    <h2 class="h6 text-muted">1. Sistemde ara</h2>
+    <input type="text" id="searchInput" class="form-control mb-2"
+           placeholder="Ad-soyad yaz, en az 2 karakter" autocomplete="off">
+    <div id="searchResults" class="mb-3"></div>
+    <div id="searchEmpty" class="text-muted small" style="display: none;">Sonuç bulunamadı.</div>
+
+    <hr class="my-4">
+
+    <h2 class="h6 text-muted">2. Sistemde yoksa yeni ekle</h2>
+    <form method="POST" action="/kisiler/<%= anchorPerson._id %>/iliski-yeni-kisi">
+      <input type="hidden" name="type" value="<%= type %>">
+      <% if (type === 'child') { %>
+        <input type="hidden" name="parentSide" id="newPersonParentSide" value="father">
+      <% } %>
+
+      <div class="mb-3">
+        <label class="form-label">Aile</label>
+        <select name="familyGroupId" class="form-select" required>
+          <option value="">—</option>
+          <% familyGroups.forEach(function (fg) { %>
+            <option value="<%= fg._id %>" <%= anchorPerson.familyGroupId && String(anchorPerson.familyGroupId._id) === String(fg._id) ? 'selected' : '' %>>
+              <%= fg.name %>
+            </option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Ad</label>
+        <input type="text" name="officialFirstName" class="form-control" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Soyadı</label>
+        <input type="text" name="officialLastName" id="newLastName" class="form-control">
+      </div>
+
+      <div class="form-check mb-3">
+        <input type="checkbox" name="hasNoLastName" class="form-check-input" id="newHasNoLastName"
+               onchange="document.getElementById('newLastName').disabled = this.checked; if (this.checked) document.getElementById('newLastName').value = '';">
+        <label class="form-check-label" for="newHasNoLastName">Soyadı yok</label>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Doğum Yılı</label>
+        <input type="number" name="birthYear" class="form-control">
+      </div>
+
+      <button type="submit" class="btn btn-primary">Yeni Kişi Olarak Ekle ve Bağla</button>
+    </form>
+
+    <a href="/kisiler/<%= anchorPerson._id %>/duzenle" class="d-inline-block mt-3">&larr; Vazgeç</a>
+  </div>
+
+  <script>
+    (function () {
+      var input = document.getElementById('searchInput');
+      var results = document.getElementById('searchResults');
+      var emptyMsg = document.getElementById('searchEmpty');
+      var debounceTimer = null;
+      var anchorId = '<%= anchorPerson._id %>';
+      var relType = '<%= type %>';
+
+      var parentSideSelect = document.getElementById('parentSideSelect');
+      var newPersonParentSideInput = document.getElementById('newPersonParentSide');
+      if (parentSideSelect && newPersonParentSideInput) {
+        parentSideSelect.addEventListener('change', function () {
+          newPersonParentSideInput.value = parentSideSelect.value;
+        });
+      }
+
+      function renderResults(list) {
+        results.innerHTML = '';
+
+        if (list.length === 0) {
+          emptyMsg.style.display = 'block';
+          return;
+        }
+        emptyMsg.style.display = 'none';
+
+        list.forEach(function (p) {
+          var card = document.createElement('div');
+          card.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+          var left = document.createElement('div');
+          var nameLine = document.createElement('strong');
+          nameLine.textContent = p.displayName;
+          left.appendChild(nameLine);
+
+          var metaLine = document.createElement('div');
+          metaLine.className = 'text-muted small';
+          var metaParts = [];
+          if (p.familyGroupName) metaParts.push(p.familyGroupName);
+          if (p.birthYear) metaParts.push(p.birthYear);
+          metaLine.textContent = metaParts.join(' · ');
+          left.appendChild(metaLine);
+
+          card.appendChild(left);
+
+          var form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '/kisiler/' + anchorId + '/iliski-baglantisi';
+
+          var typeInput = document.createElement('input');
+          typeInput.type = 'hidden';
+          typeInput.name = 'type';
+          typeInput.value = relType;
+          form.appendChild(typeInput);
+
+          var idInput = document.createElement('input');
+          idInput.type = 'hidden';
+          idInput.name = 'selectedPersonId';
+          idInput.value = p.id;
+          form.appendChild(idInput);
+
+          if (relType === 'child' && parentSideSelect) {
+            var sideInput = document.createElement('input');
+            sideInput.type = 'hidden';
+            sideInput.name = 'parentSide';
+            sideInput.value = parentSideSelect.value;
+            form.appendChild(sideInput);
+          }
+
+          var btn = document.createElement('button');
+          btn.type = 'submit';
+          btn.className = 'btn btn-sm btn-primary';
+          btn.textContent = 'Bu Kişiyi Bağla';
+          form.appendChild(btn);
+
+          card.appendChild(form);
+          results.appendChild(card);
+        });
+      }
+
+      input.addEventListener('input', function () {
+        var q = input.value.trim();
+        clearTimeout(debounceTimer);
+
+        if (q.length < 2) {
+          results.innerHTML = '';
+          emptyMsg.style.display = 'none';
+          return;
+        }
+
+        debounceTimer = setTimeout(function () {
+          fetch('/kisiler/api/ara?q=' + encodeURIComponent(q) + '&excludeId=' + anchorId)
+            .then(function (r) { return r.json(); })
+            .then(function (data) { renderResults(data.results || []); });
+        }, 300);
+      });
+    })();
+  </script>
+
+<%- include('../partials/footer', { t }) %>
