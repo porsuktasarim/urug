@@ -2,7 +2,10 @@
 
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0"><%= t('person.title') %></h1>
-    <a href="/kisiler/new" class="btn btn-primary"><%= t('common.actions.new') %></a>
+    <div class="d-flex gap-2">
+      <a href="/kisiler/ara" class="btn btn-outline-secondary">Kişi Ara</a>
+      <a href="/kisiler/new" class="btn btn-primary"><%= t('common.actions.new') %></a>
+    </div>
   </div>
 
   <% if (persons.length === 0) { %>

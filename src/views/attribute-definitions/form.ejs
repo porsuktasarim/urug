@@ -53,14 +53,13 @@
       <div class="row">
         <div class="col-6 mb-3">
           <label class="form-label"><%= t('attribute.fields.group') %></label>
-          <input type="text" name="group" class="form-control" list="groupSuggestions"
-                 value="<%= attribute ? attribute.group : 'Genel' %>"
-                 autocomplete="off">
-          <datalist id="groupSuggestions">
-            <% existingGroups.forEach(function (g) { %>
-              <option value="<%= g %>"></option>
-            <% }); %>
-          </datalist>
+          <div class="position-relative">
+            <input type="text" name="group" id="groupInput" class="form-control"
+                   value="<%= attribute ? attribute.group : 'Genel' %>"
+                   autocomplete="off">
+            <div id="groupDropdown" class="list-group position-absolute w-100 shadow-sm"
+                 style="z-index: 1000; display: none; max-height: 200px; overflow-y: auto;"></div>
+          </div>
           <div class="form-text"><%= t('attribute.groupHint') %></div>
         </div>
         <div class="col-6 mb-3">
@@ -107,5 +106,55 @@
       </div>
     </form>
   </div>
+
+  <script>
+    (function () {
+      var existingGroups = <%- JSON.stringify(existingGroups) %>;
+      var input = document.getElementById('groupInput');
+      var dropdown = document.getElementById('groupDropdown');
+
+      function renderList(filterText) {
+        var normalized = (filterText || '').toLocaleLowerCase('tr-TR');
+        var matches = existingGroups.filter(function (g) {
+          return g.toLocaleLowerCase('tr-TR').indexOf(normalized) !== -1;
+        });
+
+        if (matches.length === 0) {
+          dropdown.style.display = 'none';
+          return;
+        }
+
+        dropdown.innerHTML = matches.map(function (g) {
+          return '<button type="button" class="list-group-item list-group-item-action">' + g + '</button>';
+        }).join('');
+        dropdown.style.display = 'block';
+      }
+
+      // Tıklayınca/odaklanınca TÜM grupları göster
+      input.addEventListener('focus', function () {
+        renderList('');
+      });
+
+      // Yazarken filtrele
+      input.addEventListener('input', function () {
+        renderList(input.value);
+      });
+
+      // Listeden bir öğeye tıklanınca input'a yaz, listeyi kapat
+      dropdown.addEventListener('click', function (e) {
+        if (e.target.tagName === 'BUTTON') {
+          input.value = e.target.textContent;
+          dropdown.style.display = 'none';
+        }
+      });
+
+      // Dışarı tıklanınca kapat (input'tan çıkışta hemen kapatmıyoruz ki tıklama olayı yakalansın)
+      document.addEventListener('click', function (e) {
+        if (e.target !== input && !dropdown.contains(e.target)) {
+          dropdown.style.display = 'none';
+        }
+      });
+    })();
+  </script>
 
 <%- include('../partials/footer', { t }) %>

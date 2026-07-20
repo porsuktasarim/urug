@@ -46,6 +46,53 @@ router.get('/', async (req, res) => {
   res.render('persons/index', { persons, t, displayName });
 });
 
+// Arama sayfası — genel amaçlı arama-ve-seç bileşeni.
+// Bu adımda bağımsız bir sayfa; sonraki adımda ebeveyn/eş ekleme
+// akışlarına (modal/inline) bağlanacak.
+router.get('/ara', (req, res) => {
+  res.render('persons/search', { t });
+});
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// JSON arama API'si — ad-soyad + doğum yılı ile arar.
+// MongoDB'nin varsayılan case-insensitive regex'i Türkçe karakterleri
+// (ı/İ/ş/ğ/ç/ö/ü) doğru işlemediği için, sorgu metni de nameKey gibi
+// toLocaleLowerCase('tr-TR') ile normalize edilip 'i' bayrağı OLMADAN
+// karşılaştırılıyor (bkz. proje notları / MİS deneyimi).
+router.get('/api/ara', async (req, res) => {
+  const { q, excludeId } = req.query;
+
+  if (!q || q.trim().length < 2) {
+    return res.json({ results: [] });
+  }
+
+  const normalizedQuery = q.trim().toLocaleLowerCase('tr-TR');
+  const regex = new RegExp(escapeRegExp(normalizedQuery)); // 'i' bayrağı yok — bilinçli
+
+  const filter = { nameKey: regex };
+  if (excludeId) {
+    filter._id = { $ne: excludeId };
+  }
+
+  const persons = await Person.find(filter)
+    .populate('familyGroupId')
+    .limit(10);
+
+  const results = persons.map((p) => ({
+    id: p._id,
+    displayName: displayName(p),
+    birthYear: p.birthYear || null,
+    familyGroupName: p.familyGroupId ? p.familyGroupId.name : null,
+    familyGroupSlug: p.familyGroupId ? p.familyGroupId.slug : null,
+    slug: p.slug || null,
+  }));
+
+  res.json({ results });
+});
+
 // Yeni ekleme formu
 router.get('/new', async (req, res) => {
   const familyGroups = await getFamilyGroupsSorted();
