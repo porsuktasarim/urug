@@ -74,6 +74,18 @@ module.exports = {
     },
   },
 
+  person: {
+    title: 'Kişiler',
+    fields: {
+      familyGroupId: 'Aile',
+      officialFirstName: 'Ad',
+      officialLastName: 'Soyadı',
+      hasNoLastName: 'Soyadı yok (1934 öncesi)',
+    },
+    newTitle: 'Yeni Kişi Ekle',
+    editTitle: 'Kişiyi Düzenle',
+  },
+
   system: {
     dbConnected: 'Veritabanı bağlantısı başarılı.',
     dbConnectionFailed: 'Veritabanı bağlantısı kurulamadı.',

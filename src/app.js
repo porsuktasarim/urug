@@ -7,6 +7,7 @@ const { ensureSystemAttributes } = require('./config/seedSystemAttributes');
 const { t } = require('./lang');
 const familyGroupsRouter = require('./routes/familyGroups.routes');
 const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
+const personsRouter = require('./routes/persons.routes');
 
 const app = express();
 const PORT = process.env.PORT || 1207;
@@ -28,6 +29,7 @@ app.get('/', (req, res) => {
 
 app.use('/aileler', familyGroupsRouter);
 app.use('/admin/ozellikler', attributeDefinitionsRouter);
+app.use('/kisiler', personsRouter);
 
 async function start() {
   try {
