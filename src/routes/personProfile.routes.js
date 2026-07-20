@@ -1,6 +1,7 @@
 const express = require('express');
 const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
+const ParentChild = require('../models/ParentChild');
 const { t } = require('../lang');
 
 const router = express.Router();
@@ -41,7 +42,28 @@ router.get('/:familySlug/:personSlug', async (req, res, next) => {
     return res.redirect(301, `/${familyGroup.slug}/${person.slug}`);
   }
 
-  res.render('persons/show', { t, person, displayName });
+  // Üst soy / alt soy — bkz. proje dokümanı Bölüm 4.6.
+  // Eş bilgisi Union modeli henüz eklenmediği için burada yok (sonraki adım).
+  const parentLinks = await ParentChild.find({ childId: person._id }).populate({
+    path: 'parentId',
+    populate: { path: 'familyGroupId' },
+  });
+  const childLinks = await ParentChild.find({ parentId: person._id }).populate({
+    path: 'childId',
+    populate: { path: 'familyGroupId' },
+  });
+
+  const father = parentLinks.find((l) => l.parentSide === 'father');
+  const mother = parentLinks.find((l) => l.parentSide === 'mother');
+
+  res.render('persons/show', {
+    t,
+    person,
+    displayName,
+    father: father ? father.parentId : null,
+    mother: mother ? mother.parentId : null,
+    children: childLinks.map((l) => l.childId),
+  });
 });
 
 module.exports = router;

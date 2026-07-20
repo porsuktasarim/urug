@@ -7,12 +7,55 @@
       <% if (person.birthYear) { %> · <%= person.birthYear %><% } %>
     </p>
 
-    <div class="alert alert-light border">
-      Kişi detay sayfası (üst soy / alt soy / eş bilgileri) ileriki bir adımda eklenecek.
-      Şu an sadece slug/bağlantı mekanizmasını doğrulamak için temel bir görünüm.
+    <h2 class="h6 text-muted mt-4">Üst Soy</h2>
+    <div class="mb-1">
+      <strong>Baba:</strong>
+      <% if (father) { %>
+        <% if (father.familyGroupId && father.familyGroupId.slug && father.slug) { %>
+          <a href="/<%= father.familyGroupId.slug %>/<%= father.slug %>"><%= displayName(father) %></a>
+        <% } else { %>
+          <%= displayName(father) %>
+        <% } %>
+      <% } else { %>
+        <span class="text-muted">bilinmiyor</span>
+      <% } %>
+    </div>
+    <div class="mb-3">
+      <strong>Anne:</strong>
+      <% if (mother) { %>
+        <% if (mother.familyGroupId && mother.familyGroupId.slug && mother.slug) { %>
+          <a href="/<%= mother.familyGroupId.slug %>/<%= mother.slug %>"><%= displayName(mother) %></a>
+        <% } else { %>
+          <%= displayName(mother) %>
+        <% } %>
+      <% } else { %>
+        <span class="text-muted">bilinmiyor</span>
+      <% } %>
     </div>
 
-    <a href="/kisiler/<%= person._id %>/duzenle" class="btn btn-outline-secondary btn-sm">
+    <h2 class="h6 text-muted mt-4">Eş</h2>
+    <p class="text-muted small">
+      Eş bilgisi henüz eklenmedi — bu bölüm Union (evlilik/birliktelik) ilişkisi eklendiğinde dolacak.
+    </p>
+
+    <h2 class="h6 text-muted mt-4">Alt Soy</h2>
+    <% if (children.length > 0) { %>
+      <ul>
+        <% children.forEach(function (child) { %>
+          <li>
+            <% if (child.familyGroupId && child.familyGroupId.slug && child.slug) { %>
+              <a href="/<%= child.familyGroupId.slug %>/<%= child.slug %>"><%= displayName(child) %></a>
+            <% } else { %>
+              <%= displayName(child) %>
+            <% } %>
+          </li>
+        <% }); %>
+      </ul>
+    <% } else { %>
+      <p class="text-muted">Kayıtlı çocuk yok.</p>
+    <% } %>
+
+    <a href="/kisiler/<%= person._id %>/duzenle" class="btn btn-outline-secondary btn-sm mt-2">
       <%= t('common.actions.edit') %>
     </a>
   </div>
