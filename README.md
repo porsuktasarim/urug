@@ -26,7 +26,7 @@ npm run dev
 docker compose up --build
 ```
 
-Ardından `http://localhost:3000` adresine gidip karşılama sayfasını, `http://localhost:3000/health` adresine gidip bağlantı durumunu görebilirsin.
+Ardından `http://localhost:1207` adresine gidip karşılama sayfasını, `http://localhost:1207/health` adresine gidip bağlantı durumunu görebilirsin.
 
 ## Sıradaki Adım
 
