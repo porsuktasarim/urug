@@ -24,7 +24,7 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.render('index', { appName: t('common.appName') });
+  res.render('index', { appName: t('common.appName'), t });
 });
 
 app.use('/aileler', familyGroupsRouter);
