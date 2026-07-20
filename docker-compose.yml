@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    container_name: urug-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - ACTIVE_LOCALE=tr
+      - MONGO_URI=mongodb://mongo:27017/urug
+    depends_on:
+      - mongo
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mongo:
+    image: mongo:7
+    container_name: urug-mongo
+    restart: unless-stopped
+    volumes:
+      - urug-mongo-data:/data/db
+
+volumes:
+  urug-mongo-data:
