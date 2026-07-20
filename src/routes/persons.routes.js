@@ -3,6 +3,7 @@ const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const AttributeDefinition = require('../models/AttributeDefinition');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
+const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { t } = require('../lang');
 
 const router = express.Router();
@@ -61,7 +62,7 @@ router.get('/new', async (req, res) => {
 });
 
 function validateBase(body) {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId } = body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear } = body;
 
   if (!officialFirstName || !officialFirstName.trim()) {
     return 'Ad zorunludur.';
@@ -73,12 +74,15 @@ function validateBase(body) {
   if (hasNoLastName !== 'on' && (!officialLastName || !officialLastName.trim())) {
     return 'Soyadı zorunludur (ya da "Soyadı yok" seçeneğini işaretleyin).';
   }
+  if (birthYear && Number.isNaN(Number(birthYear))) {
+    return 'Doğum yılı sayı olmalıdır.';
+  }
   return null;
 }
 
 // Yeni kayıt oluşturma
 router.post('/', async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
 
@@ -101,15 +105,22 @@ router.post('/', async (req, res) => {
   }
 
   try {
+    const finalFirstName = officialFirstName.trim();
+    const finalLastName = hasNoLastName === 'on' ? null : officialLastName.trim();
+
     const person = new Person({
       familyGroupId,
-      officialFirstName: officialFirstName.trim(),
-      officialLastName: hasNoLastName === 'on' ? null : officialLastName.trim(),
+      officialFirstName: finalFirstName,
+      officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
+      birthYear: birthYear ? Number(birthYear) : null,
+      nameKey: computeNameKey(finalFirstName, finalLastName),
       attributes: attributeValues,
     });
 
     await person.save();
+    await reassignSlugsForNameGroup(Person, person.nameKey);
+
     res.redirect('/kisiler');
   } catch (err) {
     res.status(400).render('persons/form', {
@@ -125,7 +136,7 @@ router.post('/', async (req, res) => {
 
 // Düzenleme formu
 router.get('/:id/duzenle', async (req, res) => {
-  const person = await Person.findById(req.params.id);
+  const person = await Person.findById(req.params.id).populate('familyGroupId');
 
   if (!person) {
     return res.status(404).send('Kişi bulunamadı.');
@@ -146,7 +157,7 @@ router.get('/:id/duzenle', async (req, res) => {
 
 // Güncelleme
 router.post('/:id', async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
 
@@ -169,13 +180,32 @@ router.post('/:id', async (req, res) => {
   }
 
   try {
-    await Person.findByIdAndUpdate(req.params.id, {
-      familyGroupId,
-      officialFirstName: officialFirstName.trim(),
-      officialLastName: hasNoLastName === 'on' ? null : officialLastName.trim(),
-      hasNoLastName: hasNoLastName === 'on',
-      attributes: attributeValues,
-    });
+    const existing = await Person.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).send('Kişi bulunamadı.');
+    }
+
+    const oldNameKey = existing.nameKey;
+    const finalFirstName = officialFirstName.trim();
+    const finalLastName = hasNoLastName === 'on' ? null : officialLastName.trim();
+    const newNameKey = computeNameKey(finalFirstName, finalLastName);
+
+    existing.familyGroupId = familyGroupId;
+    existing.officialFirstName = finalFirstName;
+    existing.officialLastName = finalLastName;
+    existing.hasNoLastName = hasNoLastName === 'on';
+    existing.birthYear = birthYear ? Number(birthYear) : null;
+    existing.nameKey = newNameKey;
+    existing.attributes = attributeValues;
+
+    await existing.save();
+
+    // İsim değiştiyse hem eski hem yeni grup yeniden hesaplanmalı
+    // (eski gruptan biri eksildi, yeni gruba biri katıldı).
+    if (oldNameKey && oldNameKey !== newNameKey) {
+      await reassignSlugsForNameGroup(Person, oldNameKey);
+    }
+    await reassignSlugsForNameGroup(Person, newNameKey);
 
     res.redirect('/kisiler');
   } catch (err) {
@@ -192,7 +222,17 @@ router.post('/:id', async (req, res) => {
 
 // Silme
 router.post('/:id/sil', async (req, res) => {
+  const person = await Person.findById(req.params.id);
+  if (!person) {
+    return res.redirect('/kisiler');
+  }
+
+  const { nameKey } = person;
   await Person.findByIdAndDelete(req.params.id);
+
+  // Grup küçüldü, kalan kişilerin slug'ı (özellikle plain slug) yeniden hesaplanmalı
+  await reassignSlugsForNameGroup(Person, nameKey);
+
   res.redirect('/kisiler');
 });
 

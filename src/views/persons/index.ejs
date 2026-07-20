@@ -19,6 +19,11 @@
             <% if (p.hasNoLastName) { %>
               <span class="badge bg-secondary ms-1">soyadı yok</span>
             <% } %>
+            <% if (p.slug && p.familyGroupId && p.familyGroupId.slug) { %>
+              <a href="/<%= p.familyGroupId.slug %>/<%= p.slug %>" class="text-muted small ms-2">
+                /<%= p.familyGroupId.slug %>/<%= p.slug %>
+              </a>
+            <% } %>
           </div>
           <div class="d-flex gap-2">
             <a href="/kisiler/<%= p._id %>/duzenle" class="btn btn-sm btn-outline-secondary">

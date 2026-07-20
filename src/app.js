@@ -8,6 +8,7 @@ const { t } = require('./lang');
 const familyGroupsRouter = require('./routes/familyGroups.routes');
 const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
 const personsRouter = require('./routes/persons.routes');
+const personProfileRouter = require('./routes/personProfile.routes');
 
 const app = express();
 const PORT = process.env.PORT || 1207;
@@ -30,6 +31,12 @@ app.get('/', (req, res) => {
 app.use('/aileler', familyGroupsRouter);
 app.use('/admin/ozellikler', attributeDefinitionsRouter);
 app.use('/kisiler', personsRouter);
+
+// ÖNEMLİ: Bu route en son mount edilmeli — /:familySlug/:personSlug deseni
+// path segment sayısı bakımından diğer route'larla (ör. /aileler/new)
+// çakışabilir. Sabit route'lar önce eşleştiği için sorun olmuyor, ama
+// sıralama bozulursa çakışma oluşur.
+app.use('/', personProfileRouter);
 
 async function start() {
   try {

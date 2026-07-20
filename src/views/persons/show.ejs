@@ -1,0 +1,20 @@
+<%- include('../partials/header', { title: displayName(person), t }) %>
+
+  <div style="max-width: 480px;">
+    <h1 class="h3"><%= displayName(person) %></h1>
+    <p class="text-muted">
+      <%= person.familyGroupId ? person.familyGroupId.name : '' %>
+      <% if (person.birthYear) { %> · <%= person.birthYear %><% } %>
+    </p>
+
+    <div class="alert alert-light border">
+      Kişi detay sayfası (üst soy / alt soy / eş bilgileri) ileriki bir adımda eklenecek.
+      Şu an sadece slug/bağlantı mekanizmasını doğrulamak için temel bir görünüm.
+    </div>
+
+    <a href="/kisiler/<%= person._id %>/duzenle" class="btn btn-outline-secondary btn-sm">
+      <%= t('common.actions.edit') %>
+    </a>
+  </div>
+
+<%- include('../partials/footer', { t }) %>
