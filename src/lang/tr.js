@@ -44,6 +44,36 @@ module.exports = {
     editTitle: 'Aileyi Düzenle',
   },
 
+  attribute: {
+    title: 'Kişi Özellikleri',
+    fields: {
+      key: 'Sistem Anahtarı (key)',
+      label: 'Görünen Ad',
+      type: 'Alan Tipi',
+      options: 'Seçenekler (virgülle ayırın)',
+      group: 'Grup',
+      order: 'Sıra',
+      isRequired: 'Zorunlu mu?',
+      isActive: 'Aktif mi?',
+      dependsOn: 'Koşullu zorunluluk — bağlı olduğu alanın key\'i',
+      requiredWhen: 'Bu değerdeyken zorunlu',
+    },
+    keyHint: 'Sadece harf, rakam ve alt çizgi; harfle başlamalı. Sonradan değiştirilemez (sistem alanı hariç).',
+    systemLocked: 'Bu sistem alanı — key/tip/zorunluluk değiştirilemez, silinemez.',
+    newTitle: 'Yeni Özellik Ekle',
+    editTitle: 'Özelliği Düzenle',
+    types: {
+      text: 'Metin',
+      number: 'Sayı',
+      date: 'Tarih',
+      boolean: 'Evet/Hayır',
+      select: 'Tekli Seçim',
+      multiselect: 'Çoklu Seçim',
+      textarea: 'Uzun Metin',
+      photo: 'Görsel',
+    },
+  },
+
   system: {
     dbConnected: 'Veritabanı bağlantısı başarılı.',
     dbConnectionFailed: 'Veritabanı bağlantısı kurulamadı.',

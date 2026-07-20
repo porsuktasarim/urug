@@ -3,8 +3,10 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const { connectDB } = require('./config/db');
+const { ensureSystemAttributes } = require('./config/seedSystemAttributes');
 const { t } = require('./lang');
 const familyGroupsRouter = require('./routes/familyGroups.routes');
+const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
 
 const app = express();
 const PORT = process.env.PORT || 1207;
@@ -25,11 +27,14 @@ app.get('/', (req, res) => {
 });
 
 app.use('/aileler', familyGroupsRouter);
+app.use('/admin/ozellikler', attributeDefinitionsRouter);
 
 async function start() {
   try {
     await connectDB();
     console.log(t('system.dbConnected'));
+
+    await ensureSystemAttributes();
 
     app.listen(PORT, () => {
       console.log(t('system.serverStarted', { port: PORT }));

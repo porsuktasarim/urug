@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= t('attribute.title') %> — <%= t('common.appName') %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h3 mb-0"><%= t('attribute.title') %></h1>
+      <a href="/admin/ozellikler/new" class="btn btn-primary"><%= t('common.actions.new') %></a>
+    </div>
+
+    <% if (attributes.length === 0) { %>
+      <p class="text-muted"><%= t('common.status.empty') %></p>
+    <% } else { %>
+      <% var currentGroup = null; %>
+      <% attributes.forEach(function (attr) { %>
+        <% if (attr.group !== currentGroup) { %>
+          <% currentGroup = attr.group; %>
+          <h2 class="h6 text-muted mt-4"><%= currentGroup %></h2>
+        <% } %>
+        <div class="list-group-item list-group d-flex justify-content-between align-items-center mb-2 p-3 bg-white rounded border">
+          <div>
+            <strong><%= attr.label %></strong>
+            <span class="text-muted ms-2">(<%= attr.key %> · <%= t('attribute.types.' + attr.type) %>)</span>
+            <% if (attr.isSystem) { %>
+              <span class="badge bg-secondary ms-2">sistem</span>
+            <% } %>
+            <% if (attr.isRequired) { %>
+              <span class="badge bg-danger ms-1">zorunlu</span>
+            <% } %>
+            <% if (!attr.isActive) { %>
+              <span class="badge bg-warning text-dark ms-1">pasif</span>
+            <% } %>
+          </div>
+          <div class="d-flex gap-2">
+            <% if (!attr.isSystem) { %>
+              <form action="/admin/ozellikler/<%= attr._id %>/aktiflik" method="POST">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                  <%= attr.isActive ? 'Pasifleştir' : 'Aktifleştir' %>
+                </button>
+              </form>
+            <% } %>
+            <a href="/admin/ozellikler/<%= attr._id %>/duzenle" class="btn btn-sm btn-outline-secondary">
+              <%= t('common.actions.edit') %>
+            </a>
+            <% if (!attr.isSystem) { %>
+              <form action="/admin/ozellikler/<%= attr._id %>/sil" method="POST"
+                    onsubmit="return confirm('<%= t('common.confirm.delete') %>');">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <%= t('common.actions.delete') %>
+                </button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
+    <% } %>
+
+    <a href="/" class="d-inline-block mt-3">&larr; Ana Sayfa</a>
+  </div>
+</body>
+</html>
