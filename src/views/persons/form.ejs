@@ -66,6 +66,34 @@
         <label class="form-check-label" for="hasNoLastName"><%= t('person.fields.hasNoLastName') %></label>
       </div>
 
+      <h2 class="h6 text-muted mt-2">Evlilik Soyadı Bilgisi</h2>
+      <p class="text-muted small">
+        Eş eklendiğinde (cinsiyet "Kadın" işaretliyse) otomatik doldurulur, elle de düzenlenebilir.
+      </p>
+
+      <div class="mb-3">
+        <label class="form-label">Cinsiyet <span class="text-muted small">(otomasyon için opsiyonel)</span></label>
+        <select name="gender" class="form-select">
+          <option value="" <%= !person || !person.gender ? 'selected' : '' %>>Belirtilmedi</option>
+          <option value="female" <%= person && person.gender === 'female' ? 'selected' : '' %>>Kadın</option>
+          <option value="male" <%= person && person.gender === 'male' ? 'selected' : '' %>>Erkek</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Evlilik Soyadı</label>
+        <input type="text" name="marriedLastName" class="form-control"
+               value="<%= person && person.marriedLastName ? person.marriedLastName : '' %>">
+      </div>
+
+      <div class="form-check mb-4">
+        <input type="checkbox" name="useCombinedLastName" class="form-check-input" id="useCombinedLastName"
+               <%= person && person.useCombinedLastName ? 'checked' : '' %>>
+        <label class="form-check-label" for="useCombinedLastName">
+          Kızlık ve evlilik soyadı birlikte kullanılıyor (parantezsiz göster)
+        </label>
+      </div>
+
       <% if (dynamicAttributes.length > 0) { %>
         <% var currentGroup = null; %>
         <% dynamicAttributes.forEach(function (def) { %>
@@ -147,6 +175,20 @@
           <span class="text-muted">yok</span>
           <a href="/kisiler/<%= person._id %>/iliski-ekle?type=mother" class="btn btn-sm btn-outline-secondary ms-2">Anne Ekle</a>
         <% } %>
+      </div>
+
+      <div class="mb-2">
+        <strong>Eş(ler):</strong>
+        <% if (typeof spouses !== 'undefined' && spouses.length > 0) { %>
+          <ul class="mb-1">
+            <% spouses.forEach(function (s) { %>
+              <li><%= displayName(s) %></li>
+            <% }); %>
+          </ul>
+        <% } else { %>
+          <span class="text-muted d-block mb-1">yok</span>
+        <% } %>
+        <a href="/kisiler/<%= person._id %>/iliski-ekle?type=spouse" class="btn btn-sm btn-outline-secondary">Eş Ekle</a>
       </div>
 
       <div class="mb-2">

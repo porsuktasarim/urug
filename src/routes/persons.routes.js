@@ -3,9 +3,11 @@ const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const AttributeDefinition = require('../models/AttributeDefinition');
 const ParentChild = require('../models/ParentChild');
+const Union = require('../models/Union');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
 const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { t } = require('../lang');
+const { displayName } = require('../utils/displayName');
 
 const router = express.Router();
 
@@ -20,13 +22,6 @@ async function getDynamicAttributeDefinitions() {
   return AttributeDefinition.find({ isActive: true, isSystem: false, type: { $ne: 'photo' } })
     .collation({ locale: 'tr' })
     .sort({ group: 1, order: 1 });
-}
-
-function displayName(person) {
-  if (person.officialLastName) {
-    return `${person.officialFirstName} ${person.officialLastName}`;
-  }
-  return person.officialFirstName;
 }
 
 // Person.attributes bir Map olduğu için EJS'te doğrudan okumak yerine
@@ -130,7 +125,7 @@ function validateBase(body) {
 
 // Yeni kayıt oluşturma
 router.post('/', async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
 
@@ -162,6 +157,9 @@ router.post('/', async (req, res) => {
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
       birthYear: birthYear ? Number(birthYear) : null,
+      gender: gender || null,
+      marriedLastName: marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null,
+      useCombinedLastName: useCombinedLastName === 'on',
       nameKey: computeNameKey(finalFirstName, finalLastName),
       attributes: attributeValues,
     });
@@ -206,6 +204,17 @@ router.get('/:id/duzenle', async (req, res) => {
   const father = parentLinks.find((l) => l.parentSide === 'father');
   const mother = parentLinks.find((l) => l.parentSide === 'mother');
 
+  // Eş(ler) — çoklu evlilik desteklenir, birden fazla Union kaydı olabilir.
+  const unions = await Union.find({
+    $or: [{ personAId: person._id }, { personBId: person._id }],
+  }).populate([
+    { path: 'personAId', populate: { path: 'familyGroupId' } },
+    { path: 'personBId', populate: { path: 'familyGroupId' } },
+  ]);
+  const spouses = unions.map((u) =>
+    String(u.personAId._id) === String(person._id) ? u.personBId : u.personAId
+  );
+
   res.render('persons/form', {
     t,
     person,
@@ -214,6 +223,7 @@ router.get('/:id/duzenle', async (req, res) => {
     attributeValues: attributesToPlainObject(person),
     father: father ? father.parentId : null,
     mother: mother ? mother.parentId : null,
+    spouses,
     children: childLinks.map((l) => l.childId),
     displayName,
     errorMessage: null,
@@ -222,7 +232,7 @@ router.get('/:id/duzenle', async (req, res) => {
 
 // Güncelleme
 router.post('/:id', async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
 
@@ -260,6 +270,9 @@ router.post('/:id', async (req, res) => {
     existing.officialLastName = finalLastName;
     existing.hasNoLastName = hasNoLastName === 'on';
     existing.birthYear = birthYear ? Number(birthYear) : null;
+    existing.gender = gender || null;
+    existing.marriedLastName = marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null;
+    existing.useCombinedLastName = useCombinedLastName === 'on';
     existing.nameKey = newNameKey;
     existing.attributes = attributeValues;
 

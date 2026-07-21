@@ -2,16 +2,11 @@ const express = require('express');
 const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const ParentChild = require('../models/ParentChild');
+const Union = require('../models/Union');
 const { t } = require('../lang');
+const { displayName } = require('../utils/displayName');
 
 const router = express.Router();
-
-function displayName(person) {
-  if (person.officialLastName) {
-    return `${person.officialFirstName} ${person.officialLastName}`;
-  }
-  return person.officialFirstName;
-}
 
 /**
  * GET /:familySlug/:personSlug
@@ -42,8 +37,7 @@ router.get('/:familySlug/:personSlug', async (req, res, next) => {
     return res.redirect(301, `/${familyGroup.slug}/${person.slug}`);
   }
 
-  // Üst soy / alt soy — bkz. proje dokümanı Bölüm 4.6.
-  // Eş bilgisi Union modeli henüz eklenmediği için burada yok (sonraki adım).
+  // Üst soy / alt soy / eş — bkz. proje dokümanı Bölüm 4.6.
   const parentLinks = await ParentChild.find({ childId: person._id }).populate({
     path: 'parentId',
     populate: { path: 'familyGroupId' },
@@ -56,12 +50,23 @@ router.get('/:familySlug/:personSlug', async (req, res, next) => {
   const father = parentLinks.find((l) => l.parentSide === 'father');
   const mother = parentLinks.find((l) => l.parentSide === 'mother');
 
+  const unions = await Union.find({
+    $or: [{ personAId: person._id }, { personBId: person._id }],
+  }).populate([
+    { path: 'personAId', populate: { path: 'familyGroupId' } },
+    { path: 'personBId', populate: { path: 'familyGroupId' } },
+  ]);
+  const spouses = unions.map((u) =>
+    String(u.personAId._id) === String(person._id) ? u.personBId : u.personAId
+  );
+
   res.render('persons/show', {
     t,
     person,
     displayName,
     father: father ? father.parentId : null,
     mother: mother ? mother.parentId : null,
+    spouses,
     children: childLinks.map((l) => l.childId),
   });
 });

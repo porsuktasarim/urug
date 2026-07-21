@@ -2,27 +2,23 @@ const express = require('express');
 const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const ParentChild = require('../models/ParentChild');
+const Union = require('../models/Union');
 const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { t } = require('../lang');
+const { displayName } = require('../utils/displayName');
 
 const router = express.Router();
-
-function displayName(person) {
-  if (person.officialLastName) {
-    return `${person.officialFirstName} ${person.officialLastName}`;
-  }
-  return person.officialFirstName;
-}
 
 const RELATION_LABELS = {
   father: 'Baba',
   mother: 'Anne',
   child: 'Çocuk',
+  spouse: 'Eş',
 };
 
 // İlişki ekleme sayfası — arama-ve-seç + "sistemde yok, yeni ekle" seçeneği
 router.get('/:id/iliski-ekle', async (req, res) => {
-  const { type } = req.query; // father | mother | child
+  const { type } = req.query; // father | mother | child | spouse
 
   if (!RELATION_LABELS[type]) {
     return res.status(400).send('Geçersiz ilişki tipi.');
@@ -52,7 +48,11 @@ router.post('/:id/iliski-baglantisi', async (req, res) => {
   const anchorId = req.params.id;
 
   try {
-    await linkRelationship(type, anchorId, selectedPersonId, parentSide);
+    if (type === 'spouse') {
+      await linkSpouse(anchorId, selectedPersonId);
+    } else {
+      await linkParentChild(type, anchorId, selectedPersonId, parentSide);
+    }
     res.redirect(`/kisiler/${anchorId}/duzenle`);
   } catch (err) {
     const anchorPerson = await Person.findById(anchorId).populate('familyGroupId');
@@ -72,7 +72,7 @@ router.post('/:id/iliski-baglantisi', async (req, res) => {
 
 // Sistemde olmayan yeni bir kişi oluşturup aynı anda bağlama
 router.post('/:id/iliski-yeni-kisi', async (req, res) => {
-  const { type, officialFirstName, officialLastName, hasNoLastName, birthYear, familyGroupId, parentSide } = req.body;
+  const { type, officialFirstName, officialLastName, hasNoLastName, birthYear, familyGroupId, parentSide, gender } = req.body;
   const anchorId = req.params.id;
 
   async function rerenderWithError(message) {
@@ -110,13 +110,18 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
       birthYear: birthYear ? Number(birthYear) : null,
+      gender: gender || null,
       nameKey: computeNameKey(finalFirstName, finalLastName),
     });
 
     await newPerson.save();
     await reassignSlugsForNameGroup(Person, newPerson.nameKey);
 
-    await linkRelationship(type, anchorId, newPerson._id, parentSide);
+    if (type === 'spouse') {
+      await linkSpouse(anchorId, newPerson._id);
+    } else {
+      await linkParentChild(type, anchorId, newPerson._id, parentSide);
+    }
 
     res.redirect(`/kisiler/${anchorId}/duzenle`);
   } catch (err) {
@@ -131,7 +136,7 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
  * bağlandığı, "father" ya da "mother"); "father"/"mother" tipinde
  * anchor = çocuk, selectedPerson = ebeveyn (parentSide = type).
  */
-async function linkRelationship(type, anchorId, otherPersonId, chosenParentSide) {
+async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide) {
   if (String(anchorId) === String(otherPersonId)) {
     throw new Error('Bir kişi kendisiyle ilişkilendirilemez.');
   }
@@ -166,6 +171,42 @@ async function linkRelationship(type, anchorId, otherPersonId, chosenParentSide)
   }
 
   await ParentChild.create({ childId, parentId, parentSide });
+}
+
+/**
+ * Eş (Union) ilişkisi kurar ve otomatik evlilik soyadı ataması yapar.
+ * Kural: gender='female' olan taraf, eğer marriedLastName'i henüz boşsa,
+ * diğer tarafın officialLastName'ini otomatik olarak marriedLastName
+ * olarak alır. gender bilinmiyorsa hiçbir otomatik atama yapılmaz —
+ * kullanıcı isterse kişi düzenleme formundan elle girer.
+ */
+async function linkSpouse(anchorId, otherPersonId) {
+  if (String(anchorId) === String(otherPersonId)) {
+    throw new Error('Bir kişi kendisiyle ilişkilendirilemez.');
+  }
+
+  const existing = await Union.findOne({
+    $or: [
+      { personAId: anchorId, personBId: otherPersonId },
+      { personAId: otherPersonId, personBId: anchorId },
+    ],
+  });
+  if (existing) {
+    throw new Error('Bu eş ilişkisi zaten kayıtlı.');
+  }
+
+  await Union.create({ personAId: anchorId, personBId: otherPersonId, type: 'marriage' });
+
+  const anchorPerson = await Person.findById(anchorId);
+  const otherPerson = await Person.findById(otherPersonId);
+
+  if (anchorPerson.gender === 'female' && !anchorPerson.marriedLastName && otherPerson.officialLastName) {
+    anchorPerson.marriedLastName = otherPerson.officialLastName;
+    await anchorPerson.save();
+  } else if (otherPerson.gender === 'female' && !otherPerson.marriedLastName && anchorPerson.officialLastName) {
+    otherPerson.marriedLastName = anchorPerson.officialLastName;
+    await otherPerson.save();
+  }
 }
 
 module.exports = router;

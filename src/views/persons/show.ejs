@@ -34,9 +34,21 @@
     </div>
 
     <h2 class="h6 text-muted mt-4">Eş</h2>
-    <p class="text-muted small">
-      Eş bilgisi henüz eklenmedi — bu bölüm Union (evlilik/birliktelik) ilişkisi eklendiğinde dolacak.
-    </p>
+    <% if (spouses.length > 0) { %>
+      <ul>
+        <% spouses.forEach(function (spouse) { %>
+          <li>
+            <% if (spouse.familyGroupId && spouse.familyGroupId.slug && spouse.slug) { %>
+              <a href="/<%= spouse.familyGroupId.slug %>/<%= spouse.slug %>"><%= displayName(spouse) %></a>
+            <% } else { %>
+              <%= displayName(spouse) %>
+            <% } %>
+          </li>
+        <% }); %>
+      </ul>
+    <% } else { %>
+      <p class="text-muted">Kayıtlı eş yok.</p>
+    <% } %>
 
     <h2 class="h6 text-muted mt-4">Alt Soy</h2>
     <% if (children.length > 0) { %>
