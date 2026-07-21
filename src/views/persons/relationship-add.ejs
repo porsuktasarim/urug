@@ -11,13 +11,25 @@
     <% } %>
 
     <% if (type === 'child') { %>
-      <div class="mb-4">
+      <div class="mb-3">
         <label class="form-label">Bu bağlantıda <%= displayName(anchorPerson) %>...</label>
         <select id="parentSideSelect" class="form-select">
           <option value="father">Baba tarafı</option>
           <option value="mother">Anne tarafı</option>
         </select>
       </div>
+
+      <% if (anchorSpouses && anchorSpouses.length > 0) { %>
+        <div class="mb-4">
+          <label class="form-label">Diğer ebeveyn <span class="text-muted small">(opsiyonel — seçersen tek işlemde ikisi de bağlanır)</span></label>
+          <select id="otherParentSelect" class="form-select">
+            <option value="">Sadece <%= displayName(anchorPerson) %> bağlansın</option>
+            <% anchorSpouses.forEach(function (sp) { %>
+              <option value="<%= sp._id %>"><%= displayName(sp) %></option>
+            <% }); %>
+          </select>
+        </div>
+      <% } %>
     <% } %>
 
     <% if (type === 'spouse') { %>
@@ -59,6 +71,7 @@
       <input type="hidden" name="type" value="<%= type %>">
       <% if (type === 'child') { %>
         <input type="hidden" name="parentSide" id="newPersonParentSide" value="father">
+        <input type="hidden" name="otherParentId" id="newPersonOtherParentId" value="">
       <% } %>
       <% if (type === 'spouse') { %>
         <input type="hidden" name="anchorGender" id="newPersonAnchorGender" value="<%= anchorPerson.gender || '' %>">
@@ -126,6 +139,16 @@
       if (parentSideSelect && newPersonParentSideInput) {
         parentSideSelect.addEventListener('change', function () {
           newPersonParentSideInput.value = parentSideSelect.value;
+        });
+      }
+
+      // Çocuk eklerken "diğer ebeveyn" (aktif eş) seçimi — hem yeni-kişi
+      // formuna hem arama sonucu bağlantı formuna hidden alan olarak geçirilir.
+      var otherParentSelect = document.getElementById('otherParentSelect');
+      var newPersonOtherParentIdInput = document.getElementById('newPersonOtherParentId');
+      if (otherParentSelect && newPersonOtherParentIdInput) {
+        otherParentSelect.addEventListener('change', function () {
+          newPersonOtherParentIdInput.value = otherParentSelect.value;
         });
       }
 
@@ -197,6 +220,14 @@
             sideInput.name = 'parentSide';
             sideInput.value = parentSideSelect.value;
             form.appendChild(sideInput);
+
+            if (otherParentSelect) {
+              var otherParentInput = document.createElement('input');
+              otherParentInput.type = 'hidden';
+              otherParentInput.name = 'otherParentId';
+              otherParentInput.value = otherParentSelect.value;
+              form.appendChild(otherParentInput);
+            }
           }
 
           if (relType === 'spouse') {

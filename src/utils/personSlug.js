@@ -1,17 +1,44 @@
 const { slugify } = require('./slugify');
 
 /**
- * Aynı ad-soyad'a sahip kişileri gruplamak için normalize edilmiş anahtar.
- * Türkçe karakterler için toLocaleLowerCase('tr-TR') kullanılır çünkü
- * MongoDB'nin varsayılan karşılaştırması Türkçe karakterleri doğru işlemiyor.
+ * Bir kişinin "soyadı yerine geçecek" ayırt edici parçasını belirler.
+ * Öncelik sırası (bkz. proje notları):
+ *   1) Kızlık/doğuştan soyadı (officialLastName, hasNoLastName değilse)
+ *   2) Evlilik soyadı (marriedLastName)
+ *   3) Aile adı (familyGroupId üzerinden, sadece yukarıdakiler yoksa DB'den çekilir)
+ *   4) Hiçbiri yoksa null döner — çağıran taraf bu durumda doğum yılını
+ *      (varsa) ya da rastgele kodu tek ayırt edici olarak kullanır.
+ *
+ * @param {object} person - officialLastName, hasNoLastName, marriedLastName, familyGroupId alanlarını içeren obje
+ * @param {import('mongoose').Model} FamilyGroupModel
  */
-function computeNameKey(firstName, lastName) {
-  const full = lastName ? `${firstName} ${lastName}` : firstName;
+async function computeEffectiveSurname(person, FamilyGroupModel) {
+  if (!person.hasNoLastName && person.officialLastName) {
+    return person.officialLastName;
+  }
+  if (person.marriedLastName) {
+    return person.marriedLastName;
+  }
+  if (person.familyGroupId) {
+    const familyGroup = await FamilyGroupModel.findById(person.familyGroupId);
+    if (familyGroup) return familyGroup.name;
+  }
+  return null;
+}
+
+/**
+ * Aynı ad-soyad'a sahip kişileri gruplamak için normalize edilmiş anahtar.
+ * effectiveSurname null ise (hiçbir ayırt edici soyad/aile yoksa) sadece
+ * ad kullanılır — bu durumda nameKey'de boşluk OLMAZ, reassignSlugsForNameGroup
+ * bunu "soyadsız grup" olarak tanıyıp farklı bir kural uygular (bkz. aşağı).
+ */
+function computeNameKey(firstName, effectiveSurname) {
+  const full = effectiveSurname ? `${firstName} ${effectiveSurname}` : firstName;
   return full.trim().toLocaleLowerCase('tr-TR');
 }
 
-function computeBaseSlug(firstName, lastName) {
-  const full = lastName ? `${firstName} ${lastName}` : firstName;
+function computeBaseSlug(firstName, effectiveSurname) {
+  const full = effectiveSurname ? `${firstName} ${effectiveSurname}` : firstName;
   return slugify(full);
 }
 
@@ -26,7 +53,6 @@ function randomShortCode() {
  */
 async function ensureUniqueSlug(PersonModel, candidate, excludePersonId) {
   let finalSlug = candidate;
-  // Küçük bir olasılık için birkaç deneme yeterli
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const clash = await PersonModel.findOne({
       slug: finalSlug,
@@ -41,13 +67,20 @@ async function ensureUniqueSlug(PersonModel, candidate, excludePersonId) {
 /**
  * Belirli bir nameKey grubundaki TÜM kişilere slug atar/yeniden atar.
  *
- * Kural:
- * - Doğum yılı bilinen kişiler arasında en yaşlısı (en küçük yıl) düz slug alır.
- * - Doğum yılı bilinen diğer kişiler "baseSlug-yıl" alır; aynı yılda birden
- *   fazla kişi varsa (plain slug alan hariç) "baseSlug-yıl-a", "-b" ... eklenir.
- * - Doğum yılı bilinmeyen kişiler her zaman "baseSlug-<rastgele4>" alır
- *   (yaş sıralamasına giremezler, hiçbir zaman düz slug almazlar).
- * - Bir kişinin slug'ı değişirse, eski slug slugAliases'a eklenir (301 için).
+ * İKİ FARKLI DURUM var:
+ *
+ * A) nameKey'de bir "soyad benzeri" parça VARSA (boşluk içeriyorsa —
+ *    kızlık/evlilik soyadı ya da aile adından geliyor):
+ *    - Doğum yılı bilinen en yaşlı kişi düz slug alır (ör. "sevda-turker").
+ *    - Diğer yıl bilinenler "baseSlug-yıl" alır, aynı yılda çakışma -a/-b.
+ *    - Yıl bilinmeyenler her zaman "baseSlug-<rastgele4>" alır.
+ *
+ * B) nameKey sadece ad'dan oluşuyorsa (soyad/evlilik soyadı/aile hiçbiri
+ *    yoksa — boşluk yok): kimse düz slug ALMAZ, herkese mutlaka bir ek
+ *    eklenir — yıl biliniyorsa "sevda-1923", bilinmiyorsa "sevda-<rastgele4>".
+ *    Bu, hem okunabilirlik hem de çakışma riskini azaltmak için.
+ *
+ * Bir kişinin slug'ı değişirse, eski slug slugAliases'a eklenir (301 için).
  *
  * @param {import('mongoose').Model} PersonModel
  * @param {string} nameKey
@@ -58,54 +91,82 @@ async function reassignSlugsForNameGroup(PersonModel, nameKey) {
   const group = await PersonModel.find({ nameKey }).sort({ createdAt: 1 });
   if (group.length === 0) return;
 
-  const baseSlug = computeBaseSlug(group[0].officialFirstName, group[0].officialLastName);
-
-  const withYear = group
-    .filter((p) => p.birthYear !== null && p.birthYear !== undefined)
-    .sort((a, b) => a.birthYear - b.birthYear || a.createdAt - b.createdAt);
-
-  const withoutYear = group.filter((p) => p.birthYear === null || p.birthYear === undefined);
+  const hasSurnameLikePart = nameKey.includes(' ');
+  const baseSlug = slugify(nameKey); // nameKey zaten normalize edilmiş "ad [soyad]" biçiminde
 
   const plannedSlugs = new Map(); // personId -> yeni slug
 
-  // En yaşlı -> düz slug
-  if (withYear.length > 0) {
-    plannedSlugs.set(String(withYear[0]._id), baseSlug);
+  if (hasSurnameLikePart) {
+    const withYear = group
+      .filter((p) => p.birthYear !== null && p.birthYear !== undefined)
+      .sort((a, b) => a.birthYear - b.birthYear || a.createdAt - b.createdAt);
+    const withoutYear = group.filter((p) => p.birthYear === null || p.birthYear === undefined);
+
+    if (withYear.length > 0) {
+      plannedSlugs.set(String(withYear[0]._id), baseSlug);
+    }
+
+    const remaining = withYear.slice(1);
+    const byYear = {};
+    remaining.forEach((p) => {
+      byYear[p.birthYear] = byYear[p.birthYear] || [];
+      byYear[p.birthYear].push(p);
+    });
+
+    Object.keys(byYear).forEach((year) => {
+      const people = byYear[year];
+      if (people.length === 1) {
+        plannedSlugs.set(String(people[0]._id), `${baseSlug}-${year}`);
+      } else {
+        people.forEach((p, idx) => {
+          const suffix = String.fromCharCode(97 + idx);
+          plannedSlugs.set(String(p._id), `${baseSlug}-${year}-${suffix}`);
+        });
+      }
+    });
+
+    withoutYear.forEach((p) => {
+      if (p.slug && p.slug.startsWith(`${baseSlug}-`)) {
+        plannedSlugs.set(String(p._id), p.slug);
+      } else {
+        plannedSlugs.set(String(p._id), `${baseSlug}-${randomShortCode()}`);
+      }
+    });
+  } else {
+    // B durumu: soyad benzeri hiçbir parça yok — kimse düz slug almaz.
+    const byYear = {};
+    const withoutYear = [];
+
+    group.forEach((p) => {
+      if (p.birthYear !== null && p.birthYear !== undefined) {
+        byYear[p.birthYear] = byYear[p.birthYear] || [];
+        byYear[p.birthYear].push(p);
+      } else {
+        withoutYear.push(p);
+      }
+    });
+
+    Object.keys(byYear).forEach((year) => {
+      const people = byYear[year];
+      if (people.length === 1) {
+        plannedSlugs.set(String(people[0]._id), `${baseSlug}-${year}`);
+      } else {
+        people.forEach((p, idx) => {
+          const suffix = String.fromCharCode(97 + idx);
+          plannedSlugs.set(String(p._id), `${baseSlug}-${year}-${suffix}`);
+        });
+      }
+    });
+
+    withoutYear.forEach((p) => {
+      if (p.slug && p.slug.startsWith(`${baseSlug}-`)) {
+        plannedSlugs.set(String(p._id), p.slug);
+      } else {
+        plannedSlugs.set(String(p._id), `${baseSlug}-${randomShortCode()}`);
+      }
+    });
   }
 
-  // Geri kalan yıl bilinenler -> yıl bazlı, aynı yılda çakışma varsa -a/-b
-  const remaining = withYear.slice(1);
-  const byYear = {};
-  remaining.forEach((p) => {
-    byYear[p.birthYear] = byYear[p.birthYear] || [];
-    byYear[p.birthYear].push(p);
-  });
-
-  Object.keys(byYear).forEach((year) => {
-    const people = byYear[year];
-    if (people.length === 1) {
-      plannedSlugs.set(String(people[0]._id), `${baseSlug}-${year}`);
-    } else {
-      people.forEach((p, idx) => {
-        const suffix = String.fromCharCode(97 + idx); // a, b, c...
-        plannedSlugs.set(String(p._id), `${baseSlug}-${year}-${suffix}`);
-      });
-    }
-  });
-
-  // Yıl bilinmeyenler -> her zaman rastgele kod, düz slug'a hiç aday olmaz
-  withoutYear.forEach((p) => {
-    // Eğer zaten daha önce üretilmiş ve hâlâ makul bir slug'ı varsa (kendi
-    // rastgele kodunu taşıyorsa) koru; yoksa yeni üret. Basitlik için burada
-    // her zaman mevcut slug'ı koruyoruz (zaten benzersiz), yoksa yeni üretiriz.
-    if (p.slug && p.slug.startsWith(`${baseSlug}-`)) {
-      plannedSlugs.set(String(p._id), p.slug);
-    } else {
-      plannedSlugs.set(String(p._id), `${baseSlug}-${randomShortCode()}`);
-    }
-  });
-
-  // Planlanan slug'ları uygula
   for (const person of group) {
     const desired = plannedSlugs.get(String(person._id));
     if (!desired || desired === person.slug) continue;
@@ -120,4 +181,9 @@ async function reassignSlugsForNameGroup(PersonModel, nameKey) {
   }
 }
 
-module.exports = { computeNameKey, computeBaseSlug, reassignSlugsForNameGroup };
+module.exports = {
+  computeEffectiveSurname,
+  computeNameKey,
+  computeBaseSlug,
+  reassignSlugsForNameGroup,
+};

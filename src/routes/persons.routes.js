@@ -5,7 +5,8 @@ const AttributeDefinition = require('../models/AttributeDefinition');
 const ParentChild = require('../models/ParentChild');
 const Union = require('../models/Union');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
-const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
+const { computeEffectiveSurname, computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
+const { computeSearchKey } = require('../utils/personSearch');
 const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
 const { sortByBirthYear, childRelationLabel, getSiblings } = require('../utils/familyRelations');
 const { personProfileUrl } = require('../utils/personLink');
@@ -122,7 +123,7 @@ router.get('/api/ara', async (req, res) => {
   const normalizedQuery = q.trim().toLocaleLowerCase('tr-TR');
   const regex = new RegExp(escapeRegExp(normalizedQuery)); // 'i' bayrağı yok — bilinçli
 
-  const filter = { nameKey: regex };
+  const filter = { searchKey: regex };
   if (excludeId) {
     filter._id = { $ne: excludeId };
   }
@@ -203,18 +204,38 @@ router.post('/', requireLogin, async (req, res) => {
   try {
     const finalFirstName = officialFirstName.trim();
     const finalLastName = hasNoLastName === 'on' ? null : officialLastName.trim();
+    const finalMarriedLastName = marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null;
+    const finalFamilyGroupId = familyGroupId || null;
+    const finalNicknames = buildNicknames(req.body);
+
+    const effectiveSurname = await computeEffectiveSurname(
+      {
+        officialLastName: finalLastName,
+        hasNoLastName: hasNoLastName === 'on',
+        marriedLastName: finalMarriedLastName,
+        familyGroupId: finalFamilyGroupId,
+      },
+      FamilyGroup
+    );
 
     const person = new Person({
-      familyGroupId: familyGroupId || null,
+      familyGroupId: finalFamilyGroupId,
       officialFirstName: finalFirstName,
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
       birthYear: birthYear ? Number(birthYear) : null,
       gender: gender || null,
-      marriedLastName: marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null,
+      marriedLastName: finalMarriedLastName,
       useCombinedLastName: useCombinedLastName === 'on',
-      nicknames: buildNicknames(req.body),
-      nameKey: computeNameKey(finalFirstName, finalLastName),
+      nicknames: finalNicknames,
+      nameKey: computeNameKey(finalFirstName, effectiveSurname),
+      searchKey: computeSearchKey({
+        officialFirstName: finalFirstName,
+        officialLastName: finalLastName,
+        hasNoLastName: hasNoLastName === 'on',
+        marriedLastName: finalMarriedLastName,
+        nicknames: finalNicknames,
+      }),
       attributes: attributeValues,
     });
 
@@ -341,18 +362,38 @@ router.post('/:id', requireLogin, async (req, res) => {
     const oldNameKey = existing.nameKey;
     const finalFirstName = officialFirstName.trim();
     const finalLastName = hasNoLastName === 'on' ? null : officialLastName.trim();
-    const newNameKey = computeNameKey(finalFirstName, finalLastName);
+    const finalMarriedLastName = marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null;
+    const finalFamilyGroupId = familyGroupId || null;
+    const finalNicknames = buildNicknames(req.body);
 
-    existing.familyGroupId = familyGroupId || null;
+    const effectiveSurname = await computeEffectiveSurname(
+      {
+        officialLastName: finalLastName,
+        hasNoLastName: hasNoLastName === 'on',
+        marriedLastName: finalMarriedLastName,
+        familyGroupId: finalFamilyGroupId,
+      },
+      FamilyGroup
+    );
+    const newNameKey = computeNameKey(finalFirstName, effectiveSurname);
+
+    existing.familyGroupId = finalFamilyGroupId;
     existing.officialFirstName = finalFirstName;
     existing.officialLastName = finalLastName;
     existing.hasNoLastName = hasNoLastName === 'on';
     existing.birthYear = birthYear ? Number(birthYear) : null;
     existing.gender = gender || null;
-    existing.marriedLastName = marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null;
+    existing.marriedLastName = finalMarriedLastName;
     existing.useCombinedLastName = useCombinedLastName === 'on';
-    existing.nicknames = buildNicknames(req.body);
+    existing.nicknames = finalNicknames;
     existing.nameKey = newNameKey;
+    existing.searchKey = computeSearchKey({
+      officialFirstName: finalFirstName,
+      officialLastName: finalLastName,
+      hasNoLastName: hasNoLastName === 'on',
+      marriedLastName: finalMarriedLastName,
+      nicknames: finalNicknames,
+    });
     existing.attributes = attributeValues;
 
     await applyTcUpdate(existing, req.body.tcNumber, Person);

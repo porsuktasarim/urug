@@ -3,7 +3,8 @@ const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const ParentChild = require('../models/ParentChild');
 const Union = require('../models/Union');
-const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
+const { computeEffectiveSurname, computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
+const { computeSearchKey } = require('../utils/personSearch');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
 const { requireLogin } = require('../middleware/auth');
@@ -20,6 +21,16 @@ const RELATION_LABELS = {
   spouse: 'Eş',
 };
 
+async function getSpousesOf(personId) {
+  const unions = await Union.find({
+    $or: [{ personAId: personId }, { personBId: personId }],
+  }).populate(['personAId', 'personBId']);
+
+  return unions.map((u) =>
+    String(u.personAId._id) === String(personId) ? u.personBId : u.personAId
+  );
+}
+
 // İlişki ekleme sayfası — arama-ve-seç + "sistemde yok, yeni ekle" seçeneği
 router.get('/:id/iliski-ekle', async (req, res) => {
   const { type } = req.query; // father | mother | child | spouse
@@ -35,6 +46,10 @@ router.get('/:id/iliski-ekle', async (req, res) => {
 
   const familyGroups = await FamilyGroup.find().collation({ locale: 'tr' }).sort({ name: 1 });
 
+  // Çocuk eklerken, eğer anchor kişinin aktif bir eşi/eşleri varsa,
+  // "bu çocuğun diğer ebeveyni de bu eş olsun mu?" seçeneği sunulur.
+  const anchorSpouses = type === 'child' ? await getSpousesOf(anchorPerson._id) : [];
+
   res.render('persons/relationship-add', {
     t,
     anchorPerson,
@@ -42,25 +57,27 @@ router.get('/:id/iliski-ekle', async (req, res) => {
     type,
     relationLabel: RELATION_LABELS[type],
     familyGroups,
+    anchorSpouses,
     errorMessage: null,
   });
 });
 
 // Var olan bir kişiyi seçip bağlama
 router.post('/:id/iliski-baglantisi', async (req, res) => {
-  const { type, selectedPersonId, parentSide, anchorGender, otherGender } = req.body;
+  const { type, selectedPersonId, parentSide, anchorGender, otherGender, otherParentId } = req.body;
   const anchorId = req.params.id;
 
   try {
     if (type === 'spouse') {
       await linkSpouse(anchorId, selectedPersonId, anchorGender, otherGender);
     } else {
-      await linkParentChild(type, anchorId, selectedPersonId, parentSide);
+      await linkParentChild(type, anchorId, selectedPersonId, parentSide, otherParentId);
     }
     res.redirect(`/kisiler/${anchorId}/duzenle`);
   } catch (err) {
     const anchorPerson = await Person.findById(anchorId).populate('familyGroupId');
     const familyGroups = await FamilyGroup.find().collation({ locale: 'tr' }).sort({ name: 1 });
+    const anchorSpouses = type === 'child' ? await getSpousesOf(anchorId) : [];
 
     res.status(400).render('persons/relationship-add', {
       t,
@@ -69,6 +86,7 @@ router.post('/:id/iliski-baglantisi', async (req, res) => {
       type,
       relationLabel: RELATION_LABELS[type],
       familyGroups,
+      anchorSpouses,
       errorMessage: err.message,
     });
   }
@@ -76,12 +94,16 @@ router.post('/:id/iliski-baglantisi', async (req, res) => {
 
 // Sistemde olmayan yeni bir kişi oluşturup aynı anda bağlama
 router.post('/:id/iliski-yeni-kisi', async (req, res) => {
-  const { type, officialFirstName, officialLastName, hasNoLastName, birthYear, familyGroupId, parentSide, gender, anchorGender } = req.body;
+  const {
+    type, officialFirstName, officialLastName, hasNoLastName, birthYear,
+    familyGroupId, parentSide, gender, anchorGender, otherParentId,
+  } = req.body;
   const anchorId = req.params.id;
 
   async function rerenderWithError(message) {
     const anchorPerson = await Person.findById(anchorId).populate('familyGroupId');
     const familyGroups = await FamilyGroup.find().collation({ locale: 'tr' }).sort({ name: 1 });
+    const anchorSpouses = type === 'child' ? await getSpousesOf(anchorId) : [];
 
     return res.status(400).render('persons/relationship-add', {
       t,
@@ -90,6 +112,7 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
       type,
       relationLabel: RELATION_LABELS[type],
       familyGroups,
+      anchorSpouses,
       errorMessage: message,
     });
   }
@@ -105,15 +128,33 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
   try {
     const finalFirstName = officialFirstName.trim();
     const finalLastName = hasNoLastName === 'on' ? null : officialLastName.trim();
+    const finalFamilyGroupId = familyGroupId || null;
+
+    const effectiveSurname = await computeEffectiveSurname(
+      {
+        officialLastName: finalLastName,
+        hasNoLastName: hasNoLastName === 'on',
+        marriedLastName: null,
+        familyGroupId: finalFamilyGroupId,
+      },
+      FamilyGroup
+    );
 
     const newPerson = new Person({
-      familyGroupId: familyGroupId || null,
+      familyGroupId: finalFamilyGroupId,
       officialFirstName: finalFirstName,
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
       birthYear: birthYear ? Number(birthYear) : null,
       gender: gender || null,
-      nameKey: computeNameKey(finalFirstName, finalLastName),
+      nameKey: computeNameKey(finalFirstName, effectiveSurname),
+      searchKey: computeSearchKey({
+        officialFirstName: finalFirstName,
+        officialLastName: finalLastName,
+        hasNoLastName: hasNoLastName === 'on',
+        marriedLastName: null,
+        nicknames: [],
+      }),
     });
 
     await newPerson.save();
@@ -122,7 +163,7 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
     if (type === 'spouse') {
       await linkSpouse(anchorId, newPerson._id, anchorGender, gender);
     } else {
-      await linkParentChild(type, anchorId, newPerson._id, parentSide);
+      await linkParentChild(type, anchorId, newPerson._id, parentSide, otherParentId);
     }
 
     res.redirect(`/kisiler/${anchorId}/duzenle`);
@@ -137,8 +178,13 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
  * selectedPerson = çocuk (parentSide formdan gelir: hangi taraftan
  * bağlandığı, "father" ya da "mother"); "father"/"mother" tipinde
  * anchor = çocuk, selectedPerson = ebeveyn (parentSide = type).
+ *
+ * otherParentId: "child" tipinde, anchor'ın aktif eşi seçildiyse
+ * (bkz. relationship-add.ejs "Bu çocuğun diğer ebeveyni") o eş de
+ * otomatik olarak karşı taraftan (father/mother) bağlanır — tek
+ * işlemde her iki ebeveyn de kurulmuş olur.
  */
-async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide) {
+async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide, otherParentId) {
   if (String(anchorId) === String(otherPersonId)) {
     throw new Error('Bir kişi kendisiyle ilişkilendirilemez.');
   }
@@ -173,6 +219,15 @@ async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide) 
   }
 
   await ParentChild.create({ childId, parentId, parentSide });
+
+  // Diğer ebeveyn (aktif eş) de belirtildiyse, karşı taraftan otomatik bağla.
+  if (type === 'child' && otherParentId && otherParentId.trim()) {
+    const secondSide = chosenParentSide === 'father' ? 'mother' : 'father';
+    const secondExisting = await ParentChild.findOne({ childId: otherPersonId, parentSide: secondSide });
+    if (!secondExisting) {
+      await ParentChild.create({ childId: otherPersonId, parentId: otherParentId.trim(), parentSide: secondSide });
+    }
+  }
 }
 
 /**
@@ -187,6 +242,9 @@ async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide) 
  * diğer tarafın officialLastName'ini otomatik olarak marriedLastName
  * olarak alır. Hiçbir taraf 'female' değilse (ya da bilinmiyorsa)
  * otomatik atama yapılmaz — kullanıcı isterse elle girer.
+ *
+ * marriedLastName değiştiğinde nameKey/slug ve searchKey de yeniden
+ * hesaplanır (evlilik soyadı artık aramada bulunabilir olsun diye).
  */
 async function linkSpouse(anchorId, otherPersonId, anchorGenderOverride, otherGenderOverride) {
   if (String(anchorId) === String(otherPersonId)) {
@@ -213,14 +271,34 @@ async function linkSpouse(anchorId, otherPersonId, anchorGenderOverride, otherGe
     otherPerson.gender = otherGenderOverride;
   }
 
+  let marriedSurnameChanged = null; // hangi taraf değişti: 'anchor' | 'other' | null
+
   if (anchorPerson.gender === 'female' && !anchorPerson.marriedLastName && otherPerson.officialLastName) {
     anchorPerson.marriedLastName = otherPerson.officialLastName;
+    marriedSurnameChanged = 'anchor';
   } else if (otherPerson.gender === 'female' && !otherPerson.marriedLastName && anchorPerson.officialLastName) {
     otherPerson.marriedLastName = anchorPerson.officialLastName;
+    marriedSurnameChanged = 'other';
+  }
+
+  if (marriedSurnameChanged === 'anchor') {
+    const effectiveSurname = await computeEffectiveSurname(anchorPerson, FamilyGroup);
+    anchorPerson.nameKey = computeNameKey(anchorPerson.officialFirstName, effectiveSurname);
+    anchorPerson.searchKey = computeSearchKey(anchorPerson);
+  } else if (marriedSurnameChanged === 'other') {
+    const effectiveSurname = await computeEffectiveSurname(otherPerson, FamilyGroup);
+    otherPerson.nameKey = computeNameKey(otherPerson.officialFirstName, effectiveSurname);
+    otherPerson.searchKey = computeSearchKey(otherPerson);
   }
 
   await anchorPerson.save();
   await otherPerson.save();
+
+  if (marriedSurnameChanged === 'anchor') {
+    await reassignSlugsForNameGroup(Person, anchorPerson.nameKey);
+  } else if (marriedSurnameChanged === 'other') {
+    await reassignSlugsForNameGroup(Person, otherPerson.nameKey);
+  }
 
   await Union.create({ personAId: anchorId, personBId: otherPersonId, type: 'marriage' });
 }

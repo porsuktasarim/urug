@@ -76,6 +76,14 @@ const personSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Arama endpoint'i için — doğum adı + evlilik soyadı + lakaplar dahil
+    // geniş kapsamlı anahtar (bkz. utils/personSearch.js). nameKey'den
+    // farklı: nameKey sadece slug gruplama için, evlilikle değişmez.
+    searchKey: {
+      type: String,
+      index: true,
+    },
+
     // Görünür/paylaşılabilir link için slug. Aynı ad-soyad grubunda en yaşlı
     // kişi düz slug alır, diğerleri yıl eklenmiş slug alır (bkz. utils/personSlug.js).
     slug: {
