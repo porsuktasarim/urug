@@ -46,6 +46,7 @@
           var metaParts = [];
           if (p.familyGroupName) metaParts.push(p.familyGroupName);
           if (p.birthYear) metaParts.push(p.birthYear);
+          if (p.eldestChildName) metaParts.push('en büyük çocuğu: ' + p.eldestChildName);
           metaLine.textContent = metaParts.join(' · ');
           left.appendChild(metaLine);
 

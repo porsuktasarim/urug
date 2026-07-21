@@ -96,7 +96,7 @@ router.post('/:id/iliski-baglantisi', async (req, res) => {
 router.post('/:id/iliski-yeni-kisi', async (req, res) => {
   const {
     type, officialFirstName, officialLastName, hasNoLastName, birthYear,
-    familyGroupId, parentSide, gender, anchorGender, otherParentId,
+    familyGroupId, parentSide, gender, anchorGender, otherParentId, personalNickname,
   } = req.body;
   const anchorId = req.params.id;
 
@@ -140,6 +140,10 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
       FamilyGroup
     );
 
+    const finalNicknames = personalNickname && personalNickname.trim()
+      ? [{ type: 'personal', value: personalNickname.trim(), inheritedFrom: null, note: null }]
+      : [];
+
     const newPerson = new Person({
       familyGroupId: finalFamilyGroupId,
       officialFirstName: finalFirstName,
@@ -147,13 +151,14 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
       hasNoLastName: hasNoLastName === 'on',
       birthYear: birthYear ? Number(birthYear) : null,
       gender: gender || null,
+      nicknames: finalNicknames,
       nameKey: computeNameKey(finalFirstName, effectiveSurname),
       searchKey: computeSearchKey({
         officialFirstName: finalFirstName,
         officialLastName: finalLastName,
         hasNoLastName: hasNoLastName === 'on',
         marriedLastName: null,
-        nicknames: [],
+        nicknames: finalNicknames,
       }),
     });
 

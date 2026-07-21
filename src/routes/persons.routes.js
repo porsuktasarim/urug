@@ -146,14 +146,26 @@ router.get('/api/ara', async (req, res) => {
     .populate('familyGroupId')
     .limit(10);
 
-  const results = persons.map((p) => ({
-    id: p._id,
-    displayName: displayName(p),
-    birthYear: p.birthYear || null,
-    familyGroupName: p.familyGroupId ? p.familyGroupId.name : null,
-    familyGroupSlug: p.familyGroupId ? p.familyGroupId.slug : null,
-    slug: p.slug || null,
-  }));
+  // Aynı ad-soyad'lı ama kan bağı olmayan kişileri ayırt etmek için
+  // (ör. iki farklı ailenin ebeveynleri aynı isimde ama akraba değil),
+  // her sonucun en büyük çocuğu da gösteriliyor.
+  const results = await Promise.all(
+    persons.map(async (p) => {
+      const childLinks = await ParentChild.find({ parentId: p._id }).populate('childId');
+      const children = sortByBirthYear(childLinks.map((l) => l.childId));
+      const eldestChild = children.length > 0 ? children[0] : null;
+
+      return {
+        id: p._id,
+        displayName: displayName(p),
+        birthYear: p.birthYear || null,
+        familyGroupName: p.familyGroupId ? p.familyGroupId.name : null,
+        familyGroupSlug: p.familyGroupId ? p.familyGroupId.slug : null,
+        slug: p.slug || null,
+        eldestChildName: eldestChild ? displayName(eldestChild) : null,
+      };
+    })
+  );
 
   res.json({ results });
 });

@@ -47,6 +47,30 @@ function randomShortCode() {
 }
 
 /**
+ * Bir kişinin mevcut slug'ının, VERİLEN baseSlug için üretilmiş "taze"
+ * bir rastgele-kod eki olup olmadığını kontrol eder.
+ *
+ * BUG NOTU: Sadece `slug.startsWith(baseSlug + '-')` kontrolü yanlış
+ * pozitif üretiyordu — örneğin baseSlug "ishak" iken, eski (artık geçersiz)
+ * bir slug olan "ishak-turkeli-x7k2" de "ishak-" ile başladığı için
+ * "geçerli" sanılıp korunuyordu (kişi aileden çıkarılsa bile eski aile
+ * temelli slug'ı hiç değişmiyordu). Bu fonksiyon, prefix'ten sonra kalan
+ * kısmın EK BİR TİRE İÇERMEDİĞİNİ de kontrol ederek (rastgele kod hiçbir
+ * zaman tire içermez) bu durumu ayırt eder.
+ */
+function hasFreshRandomSuffix(slug, baseSlug) {
+  if (!slug || !slug.startsWith(`${baseSlug}-`)) return false;
+  const suffix = slug.slice(baseSlug.length + 1);
+  // randomShortCode() her zaman TAM 4 karakterlik base36 (a-z0-9) üretir.
+  // Çakışma durumunda ensureUniqueSlug ek kod(lar) zincirleyebilir
+  // (ör. "x7k2-a1b2"), o yüzden her segment ayrı ayrı kontrol edilir.
+  // Bir aile adı gibi gerçek bir kelime (ör. "turkeli") bu deseni
+  // TUTMAZ, bu yüzden "eski/geçersiz" sayılıp yeniden üretilir.
+  const segments = suffix.split('-');
+  return segments.length > 0 && segments.every((seg) => /^[a-z0-9]{4}$/.test(seg));
+}
+
+/**
  * baseSlug/candidate üretilen bir slug'ın DB'de (bu grup dışında da)
  * başka biri tarafından kullanılıp kullanılmadığını kontrol eder ve
  * gerekirse rastgele ek ekleyerek benzersiz hale getirir.
@@ -126,7 +150,7 @@ async function reassignSlugsForNameGroup(PersonModel, nameKey) {
     });
 
     withoutYear.forEach((p) => {
-      if (p.slug && p.slug.startsWith(`${baseSlug}-`)) {
+      if (hasFreshRandomSuffix(p.slug, baseSlug)) {
         plannedSlugs.set(String(p._id), p.slug);
       } else {
         plannedSlugs.set(String(p._id), `${baseSlug}-${randomShortCode()}`);
@@ -159,7 +183,7 @@ async function reassignSlugsForNameGroup(PersonModel, nameKey) {
     });
 
     withoutYear.forEach((p) => {
-      if (p.slug && p.slug.startsWith(`${baseSlug}-`)) {
+      if (hasFreshRandomSuffix(p.slug, baseSlug)) {
         plannedSlugs.set(String(p._id), p.slug);
       } else {
         plannedSlugs.set(String(p._id), `${baseSlug}-${randomShortCode()}`);
