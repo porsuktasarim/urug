@@ -89,8 +89,14 @@ const personSchema = new mongoose.Schema(
     // NOT: Bu adımda henüz gerçek bir kullanıcı/rol sistemi (auth) yok, bu yüzden
     // "sadece admin görsün" kuralı arayüz seviyesinde uygulanıyor ama route
     // seviyesinde zorlanmıyor — Yetki Modeli adımı tamamlanınca sıkılaştırılacak.
-    tcEncrypted: { type: String, default: null },
-    tcHash: { type: String, default: null, unique: true, sparse: true },
+    // NOT: default:null KASITLI OLARAK yazılmıyor. Mongoose'da default:null
+    // verilirse alan her kayıtta "null" değeriyle açıkça set edilir, bu da
+    // sparse unique index'i bozar (sparse sadece alan HİÇ YOKSA/undefined
+    // ise atlar, null değeri "var" sayılır) — TC girilmemiş 2. kişide bile
+    // "tcHash: null" çakışması/duplicate key hatası oluşturur. default
+    // verilmezse alan hiç dokunulmadığında tamamen yok (undefined) kalır.
+    tcEncrypted: { type: String },
+    tcHash: { type: String, unique: true, sparse: true },
 
     attributes: {
       type: Map,
