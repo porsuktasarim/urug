@@ -225,4 +225,37 @@ async function linkSpouse(anchorId, otherPersonId, anchorGenderOverride, otherGe
   await Union.create({ personAId: anchorId, personBId: otherPersonId, type: 'marriage' });
 }
 
+// Ebeveyn bağını kaldır (yanlış taraf girildiyse: kaldır, doğru tarafla yeniden ekle)
+router.post('/:id/iliski-kaldir/ebeveyn/:parentSide', async (req, res) => {
+  const { id, parentSide } = req.params;
+
+  if (parentSide !== 'father' && parentSide !== 'mother') {
+    return res.status(400).send('Geçersiz taraf.');
+  }
+
+  await ParentChild.findOneAndDelete({ childId: id, parentSide });
+  res.redirect(`/kisiler/${id}/duzenle`);
+});
+
+// Çocuk bağını kaldır
+router.post('/:id/iliski-kaldir/cocuk/:childId', async (req, res) => {
+  const { id, childId } = req.params;
+
+  await ParentChild.findOneAndDelete({ parentId: id, childId });
+  res.redirect(`/kisiler/${id}/duzenle`);
+});
+
+// Eş bağını kaldır
+router.post('/:id/iliski-kaldir/es/:spouseId', async (req, res) => {
+  const { id, spouseId } = req.params;
+
+  await Union.findOneAndDelete({
+    $or: [
+      { personAId: id, personBId: spouseId },
+      { personAId: spouseId, personBId: id },
+    ],
+  });
+  res.redirect(`/kisiler/${id}/duzenle`);
+});
+
 module.exports = router;

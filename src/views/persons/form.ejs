@@ -196,6 +196,10 @@
         <strong>Baba:</strong>
         <% if (typeof father !== 'undefined' && father) { %>
           <%= displayName(father) %>
+          <form action="/kisiler/<%= person._id %>/iliski-kaldir/ebeveyn/father" method="POST" class="d-inline"
+                onsubmit="return confirm('Baba bağlantısını kaldırmak istediğine emin misin?');">
+            <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Kaldır</button>
+          </form>
         <% } else { %>
           <span class="text-muted">yok</span>
           <a href="/kisiler/<%= person._id %>/iliski-ekle?type=father" class="btn btn-sm btn-outline-secondary ms-2">Baba Ekle</a>
@@ -206,6 +210,10 @@
         <strong>Anne:</strong>
         <% if (typeof mother !== 'undefined' && mother) { %>
           <%= displayName(mother) %>
+          <form action="/kisiler/<%= person._id %>/iliski-kaldir/ebeveyn/mother" method="POST" class="d-inline"
+                onsubmit="return confirm('Anne bağlantısını kaldırmak istediğine emin misin?');">
+            <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Kaldır</button>
+          </form>
         <% } else { %>
           <span class="text-muted">yok</span>
           <a href="/kisiler/<%= person._id %>/iliski-ekle?type=mother" class="btn btn-sm btn-outline-secondary ms-2">Anne Ekle</a>
@@ -228,9 +236,15 @@
       <div class="mb-2">
         <strong>Eş(ler):</strong>
         <% if (typeof spouses !== 'undefined' && spouses.length > 0) { %>
-          <ul class="mb-1">
+          <ul class="mb-1 list-unstyled">
             <% spouses.forEach(function (s) { %>
-              <li><%= displayName(s) %></li>
+              <li class="mb-1">
+                <%= displayName(s) %>
+                <form action="/kisiler/<%= person._id %>/iliski-kaldir/es/<%= s._id %>" method="POST" class="d-inline"
+                      onsubmit="return confirm('Bu eş bağlantısını kaldırmak istediğine emin misin?');">
+                  <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Kaldır</button>
+                </form>
+              </li>
             <% }); %>
           </ul>
         <% } else { %>
@@ -242,13 +256,17 @@
       <div class="mb-2">
         <strong>Çocuklar:</strong>
         <% if (typeof children !== 'undefined' && children.length > 0) { %>
-          <ul class="mb-1">
+          <ul class="mb-1 list-unstyled">
             <% children.forEach(function (c) { %>
               <% var cLabel = typeof childRelationLabel !== 'undefined' ? childRelationLabel(c) : ''; %>
-              <li>
+              <li class="mb-1">
                 <%= displayName(c) %>
                 <% if (cLabel) { %><span class="text-muted small"> (<%= cLabel %>)</span><% } %>
                 <% if (c.birthYear) { %><span class="text-muted small"> · <%= c.birthYear %></span><% } %>
+                <form action="/kisiler/<%= person._id %>/iliski-kaldir/cocuk/<%= c._id %>" method="POST" class="d-inline"
+                      onsubmit="return confirm('Bu çocuk bağlantısını kaldırmak istediğine emin misin?');">
+                  <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Kaldır</button>
+                </form>
               </li>
             <% }); %>
           </ul>
