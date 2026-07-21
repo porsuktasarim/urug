@@ -20,6 +20,32 @@
       </div>
     <% } %>
 
+    <% if (type === 'spouse') { %>
+      <div class="alert alert-light border mb-4">
+        <p class="small text-muted mb-3">
+          Evlilik soyadı otomasyonu (kadın tarafın soyadının otomatik güncellenmesi) için her iki tarafın
+          cinsiyetinin bilinmesi gerekir. Burada ikisini de tek seferde ayarlayabilirsin.
+        </p>
+        <div class="mb-2">
+          <label class="form-label"><%= displayName(anchorPerson) %> — cinsiyet</label>
+          <select id="anchorGenderSelect" class="form-select">
+            <option value="" <%= !anchorPerson.gender ? 'selected' : '' %>>Belirtilmedi</option>
+            <option value="female" <%= anchorPerson.gender === 'female' ? 'selected' : '' %>>Kadın</option>
+            <option value="male" <%= anchorPerson.gender === 'male' ? 'selected' : '' %>>Erkek</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Bağlanacak eş — cinsiyet</label>
+          <select id="otherGenderSelect" class="form-select">
+            <option value="" selected>Belirtilmedi</option>
+            <option value="female">Kadın</option>
+            <option value="male">Erkek</option>
+          </select>
+          <div class="form-text">Hem aşağıdaki aramada seçilecek kişi hem de yeni eklenecek kişi için geçerli.</div>
+        </div>
+      </div>
+    <% } %>
+
     <h2 class="h6 text-muted">1. Sistemde ara</h2>
     <input type="text" id="searchInput" class="form-control mb-2"
            placeholder="Ad-soyad yaz, en az 2 karakter" autocomplete="off">
@@ -33,6 +59,9 @@
       <input type="hidden" name="type" value="<%= type %>">
       <% if (type === 'child') { %>
         <input type="hidden" name="parentSide" id="newPersonParentSide" value="father">
+      <% } %>
+      <% if (type === 'spouse') { %>
+        <input type="hidden" name="anchorGender" id="newPersonAnchorGender" value="<%= anchorPerson.gender || '' %>">
       <% } %>
 
       <div class="mb-3">
@@ -70,7 +99,7 @@
 
       <div class="mb-3">
         <label class="form-label">Cinsiyet <span class="text-muted small">(evlilik soyadı otomasyonu için opsiyonel)</span></label>
-        <select name="gender" class="form-select">
+        <select name="gender" id="newPersonGender" class="form-select">
           <option value="">Belirtilmedi</option>
           <option value="female">Kadın</option>
           <option value="male">Erkek</option>
@@ -97,6 +126,24 @@
       if (parentSideSelect && newPersonParentSideInput) {
         parentSideSelect.addEventListener('change', function () {
           newPersonParentSideInput.value = parentSideSelect.value;
+        });
+      }
+
+      // Eş ekleme: iki cinsiyet select'i, hem arama sonucu bağlantı formuna
+      // hem yeni-kişi formuna hidden alan olarak senkronize edilir.
+      var anchorGenderSelect = document.getElementById('anchorGenderSelect');
+      var otherGenderSelect = document.getElementById('otherGenderSelect');
+      var newPersonAnchorGenderInput = document.getElementById('newPersonAnchorGender');
+      var newPersonGenderSelect = document.getElementById('newPersonGender');
+
+      if (anchorGenderSelect && newPersonAnchorGenderInput) {
+        anchorGenderSelect.addEventListener('change', function () {
+          newPersonAnchorGenderInput.value = anchorGenderSelect.value;
+        });
+      }
+      if (otherGenderSelect && newPersonGenderSelect) {
+        otherGenderSelect.addEventListener('change', function () {
+          newPersonGenderSelect.value = otherGenderSelect.value;
         });
       }
 
@@ -150,6 +197,20 @@
             sideInput.name = 'parentSide';
             sideInput.value = parentSideSelect.value;
             form.appendChild(sideInput);
+          }
+
+          if (relType === 'spouse') {
+            var anchorGenderInput = document.createElement('input');
+            anchorGenderInput.type = 'hidden';
+            anchorGenderInput.name = 'anchorGender';
+            anchorGenderInput.value = anchorGenderSelect ? anchorGenderSelect.value : '';
+            form.appendChild(anchorGenderInput);
+
+            var otherGenderInput = document.createElement('input');
+            otherGenderInput.type = 'hidden';
+            otherGenderInput.name = 'otherGender';
+            otherGenderInput.value = otherGenderSelect ? otherGenderSelect.value : '';
+            form.appendChild(otherGenderInput);
           }
 
           var btn = document.createElement('button');

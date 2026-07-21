@@ -44,12 +44,12 @@ router.get('/:id/iliski-ekle', async (req, res) => {
 
 // Var olan bir kişiyi seçip bağlama
 router.post('/:id/iliski-baglantisi', async (req, res) => {
-  const { type, selectedPersonId, parentSide } = req.body;
+  const { type, selectedPersonId, parentSide, anchorGender, otherGender } = req.body;
   const anchorId = req.params.id;
 
   try {
     if (type === 'spouse') {
-      await linkSpouse(anchorId, selectedPersonId);
+      await linkSpouse(anchorId, selectedPersonId, anchorGender, otherGender);
     } else {
       await linkParentChild(type, anchorId, selectedPersonId, parentSide);
     }
@@ -72,7 +72,7 @@ router.post('/:id/iliski-baglantisi', async (req, res) => {
 
 // Sistemde olmayan yeni bir kişi oluşturup aynı anda bağlama
 router.post('/:id/iliski-yeni-kisi', async (req, res) => {
-  const { type, officialFirstName, officialLastName, hasNoLastName, birthYear, familyGroupId, parentSide, gender } = req.body;
+  const { type, officialFirstName, officialLastName, hasNoLastName, birthYear, familyGroupId, parentSide, gender, anchorGender } = req.body;
   const anchorId = req.params.id;
 
   async function rerenderWithError(message) {
@@ -118,7 +118,7 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
     await reassignSlugsForNameGroup(Person, newPerson.nameKey);
 
     if (type === 'spouse') {
-      await linkSpouse(anchorId, newPerson._id);
+      await linkSpouse(anchorId, newPerson._id, anchorGender, gender);
     } else {
       await linkParentChild(type, anchorId, newPerson._id, parentSide);
     }
@@ -175,12 +175,18 @@ async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide) 
 
 /**
  * Eş (Union) ilişkisi kurar ve otomatik evlilik soyadı ataması yapar.
+ *
+ * anchorGenderOverride / otherGenderOverride: ilişki ekleme sayfasında
+ * o an için elle seçilmiş cinsiyet değerleri (opsiyonel) — sayfa tek
+ * seferde hem ilişkiyi kurar hem de eksik/yanlış cinsiyet bilgisini
+ * günceller, çünkü otomatik soyadı ataması buna bağlı.
+ *
  * Kural: gender='female' olan taraf, eğer marriedLastName'i henüz boşsa,
  * diğer tarafın officialLastName'ini otomatik olarak marriedLastName
- * olarak alır. gender bilinmiyorsa hiçbir otomatik atama yapılmaz —
- * kullanıcı isterse kişi düzenleme formundan elle girer.
+ * olarak alır. Hiçbir taraf 'female' değilse (ya da bilinmiyorsa)
+ * otomatik atama yapılmaz — kullanıcı isterse elle girer.
  */
-async function linkSpouse(anchorId, otherPersonId) {
+async function linkSpouse(anchorId, otherPersonId, anchorGenderOverride, otherGenderOverride) {
   if (String(anchorId) === String(otherPersonId)) {
     throw new Error('Bir kişi kendisiyle ilişkilendirilemez.');
   }
@@ -195,18 +201,26 @@ async function linkSpouse(anchorId, otherPersonId) {
     throw new Error('Bu eş ilişkisi zaten kayıtlı.');
   }
 
-  await Union.create({ personAId: anchorId, personBId: otherPersonId, type: 'marriage' });
-
   const anchorPerson = await Person.findById(anchorId);
   const otherPerson = await Person.findById(otherPersonId);
 
+  if (anchorGenderOverride === 'female' || anchorGenderOverride === 'male') {
+    anchorPerson.gender = anchorGenderOverride;
+  }
+  if (otherGenderOverride === 'female' || otherGenderOverride === 'male') {
+    otherPerson.gender = otherGenderOverride;
+  }
+
   if (anchorPerson.gender === 'female' && !anchorPerson.marriedLastName && otherPerson.officialLastName) {
     anchorPerson.marriedLastName = otherPerson.officialLastName;
-    await anchorPerson.save();
   } else if (otherPerson.gender === 'female' && !otherPerson.marriedLastName && anchorPerson.officialLastName) {
     otherPerson.marriedLastName = anchorPerson.officialLastName;
-    await otherPerson.save();
   }
+
+  await anchorPerson.save();
+  await otherPerson.save();
+
+  await Union.create({ personAId: anchorId, personBId: otherPersonId, type: 'marriage' });
 }
 
 module.exports = router;
