@@ -1,7 +1,17 @@
 <%- include('../partials/header', { title: displayName(person), t }) %>
 
   <div style="max-width: 480px;">
-    <h1 class="h3"><%= displayName(person) %></h1>
+    <h1 class="h3 mb-0">
+      <%= displayName(person) %>
+      <% personalNicknames.forEach(function (nick, i) { %>
+        <span class="fst-italic text-muted h5">"<%= nick %>"<%= i < personalNicknames.length - 1 ? ',' : '' %></span>
+      <% }); %>
+    </h1>
+    <% if (familyLakab) { %>
+      <div class="mb-1">
+        <span class="badge rounded-pill text-bg-light border text-muted"><%= familyLakab.value %></span>
+      </div>
+    <% } %>
     <p class="text-muted">
       <%= person.familyGroupId ? person.familyGroupId.name : '' %>
       <% if (person.birthYear) { %> · <%= person.birthYear %><% } %>

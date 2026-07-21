@@ -5,6 +5,7 @@ const ParentChild = require('../models/ParentChild');
 const Union = require('../models/Union');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
+const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
 
 const router = express.Router();
 
@@ -68,6 +69,8 @@ router.get('/:familySlug/:personSlug', async (req, res, next) => {
     mother: mother ? mother.parentId : null,
     spouses,
     children: childLinks.map((l) => l.childId),
+    personalNicknames: getPersonalNicknames(person),
+    familyLakab: getFamilyLakab(person),
   });
 });
 

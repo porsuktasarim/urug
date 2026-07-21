@@ -6,6 +6,7 @@ const ParentChild = require('../models/ParentChild');
 const Union = require('../models/Union');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
 const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
+const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
 
@@ -30,6 +31,35 @@ function attributesToPlainObject(person) {
   if (!person || !person.attributes) return {};
   if (person.attributes instanceof Map) return Object.fromEntries(person.attributes);
   return person.attributes; // form validasyon hatası sonrası zaten düz obje olabilir
+}
+
+// Form verisinden Person.nicknames dizisini üretir.
+// personalNicknames: virgülle ayrılmış serbest metin -> birden fazla "personal" kaydı
+// familyLakab: tek metin -> tek "familyLakab" kaydı, opsiyonel inheritedFrom ile
+function buildNicknames(body) {
+  const nicknames = [];
+  const { personalNicknames, familyLakab, familyLakabInheritedFrom } = body;
+
+  if (personalNicknames && personalNicknames.trim()) {
+    personalNicknames
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .forEach((value) => {
+        nicknames.push({ type: 'personal', value, inheritedFrom: null, note: null });
+      });
+  }
+
+  if (familyLakab && familyLakab.trim()) {
+    nicknames.push({
+      type: 'familyLakab',
+      value: familyLakab.trim(),
+      inheritedFrom: familyLakabInheritedFrom && familyLakabInheritedFrom.trim() ? familyLakabInheritedFrom.trim() : null,
+      note: null,
+    });
+  }
+
+  return nicknames;
 }
 
 // Liste — Türkçe alfabetik sıralama (ad'a göre)
@@ -160,6 +190,7 @@ router.post('/', async (req, res) => {
       gender: gender || null,
       marriedLastName: marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null,
       useCombinedLastName: useCombinedLastName === 'on',
+      nicknames: buildNicknames(req.body),
       nameKey: computeNameKey(finalFirstName, finalLastName),
       attributes: attributeValues,
     });
@@ -215,6 +246,14 @@ router.get('/:id/duzenle', async (req, res) => {
     String(u.personAId._id) === String(person._id) ? u.personBId : u.personAId
   );
 
+  // Lakap bilgileri — form önceden doldurulsun diye.
+  const personalNicknamesValue = getPersonalNicknames(person).join(', ');
+  const familyLakabEntry = getFamilyLakab(person);
+  let familyLakabInheritedFromPerson = null;
+  if (familyLakabEntry && familyLakabEntry.inheritedFrom) {
+    familyLakabInheritedFromPerson = await Person.findById(familyLakabEntry.inheritedFrom);
+  }
+
   res.render('persons/form', {
     t,
     person,
@@ -226,6 +265,10 @@ router.get('/:id/duzenle', async (req, res) => {
     spouses,
     children: childLinks.map((l) => l.childId),
     displayName,
+    personalNicknamesValue,
+    familyLakabValue: familyLakabEntry ? familyLakabEntry.value : '',
+    familyLakabInheritedFromId: familyLakabEntry ? familyLakabEntry.inheritedFrom : null,
+    familyLakabInheritedFromName: familyLakabInheritedFromPerson ? displayName(familyLakabInheritedFromPerson) : '',
     errorMessage: null,
   });
 });
@@ -273,6 +316,7 @@ router.post('/:id', async (req, res) => {
     existing.gender = gender || null;
     existing.marriedLastName = marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null;
     existing.useCombinedLastName = useCombinedLastName === 'on';
+    existing.nicknames = buildNicknames(req.body);
     existing.nameKey = newNameKey;
     existing.attributes = attributeValues;
 

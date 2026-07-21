@@ -66,6 +66,32 @@
         <label class="form-check-label" for="hasNoLastName"><%= t('person.fields.hasNoLastName') %></label>
       </div>
 
+      <h2 class="h6 text-muted mt-2">Lakaplar</h2>
+
+      <div class="mb-3">
+        <label class="form-label">Kişisel Lakap(lar) <span class="text-muted small">(virgülle ayırın)</span></label>
+        <input type="text" name="personalNicknames" class="form-control"
+               value="<%= typeof personalNicknamesValue !== 'undefined' ? personalNicknamesValue : '' %>"
+               placeholder='örn: Küçük Hüseyin, Topal'>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Sülale Lakabı <span class="text-muted small">(tek)</span></label>
+        <input type="text" name="familyLakab" id="familyLakabInput" class="form-control"
+               value="<%= typeof familyLakabValue !== 'undefined' ? familyLakabValue : '' %>"
+               placeholder="örn: Bayramlılar">
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label">Sülale Lakabı Kimden Miras <span class="text-muted small">(opsiyonel)</span></label>
+        <input type="text" id="lakabInheritedSearch" class="form-control"
+               value="<%= typeof familyLakabInheritedFromName !== 'undefined' ? familyLakabInheritedFromName : '' %>"
+               placeholder="Ad-soyad yazıp aramaya başla" autocomplete="off">
+        <input type="hidden" name="familyLakabInheritedFrom" id="lakabInheritedId"
+               value="<%= typeof familyLakabInheritedFromId !== 'undefined' && familyLakabInheritedFromId ? familyLakabInheritedFromId : '' %>">
+        <div id="lakabInheritedResults" class="list-group mt-1"></div>
+      </div>
+
       <h2 class="h6 text-muted mt-2">Evlilik Soyadı Bilgisi</h2>
       <p class="text-muted small">
         Eş eklendiğinde (cinsiyet "Kadın" işaretliyse) otomatik doldurulur, elle de düzenlenebilir.
@@ -206,5 +232,47 @@
       </div>
     <% } %>
   </div>
+
+  <script>
+    (function () {
+      var searchInput = document.getElementById('lakabInheritedSearch');
+      var hiddenId = document.getElementById('lakabInheritedId');
+      var results = document.getElementById('lakabInheritedResults');
+      var debounceTimer = null;
+
+      if (!searchInput) return;
+
+      searchInput.addEventListener('input', function () {
+        var q = searchInput.value.trim();
+        hiddenId.value = ''; // yeniden aramaya başlayınca eski seçim geçersiz sayılır
+
+        clearTimeout(debounceTimer);
+        if (q.length < 2) {
+          results.innerHTML = '';
+          return;
+        }
+
+        debounceTimer = setTimeout(function () {
+          fetch('/kisiler/api/ara?q=' + encodeURIComponent(q))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              results.innerHTML = '';
+              (data.results || []).forEach(function (p) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action';
+                btn.textContent = p.displayName + (p.birthYear ? ' (' + p.birthYear + ')' : '');
+                btn.addEventListener('click', function () {
+                  searchInput.value = p.displayName;
+                  hiddenId.value = p.id;
+                  results.innerHTML = '';
+                });
+                results.appendChild(btn);
+              });
+            });
+        }, 300);
+      });
+    })();
+  </script>
 
 <%- include('../partials/footer', { t }) %>
