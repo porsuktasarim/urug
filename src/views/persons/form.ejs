@@ -59,6 +59,15 @@
         </div>
       <% } %>
 
+      <div class="mb-4">
+        <label class="form-label">TC Kimlik No</label>
+        <input type="text" name="tcNumber" class="form-control" maxlength="11"
+               placeholder="<%= person && person.tcEncrypted ? 'TC girildi — değiştirmek için yeni numara gir' : 'Girilmedi' %>">
+        <div class="form-text">
+          Şifreli saklanır, düz metin hiçbir yerde tutulmaz. Boş bırakırsan mevcut değer değişmez.
+        </div>
+      </div>
+
       <div class="form-check mb-4">
         <input type="checkbox" name="hasNoLastName" class="form-check-input" id="hasNoLastName"
                <%= hasNoLastNameChecked ? 'checked' : '' %>

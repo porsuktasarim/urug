@@ -2,22 +2,39 @@
 
 Self-hosted aile şeceresi uygulaması.
 
-## Durum (urug010 itibarıyla)
+## Durum (urug016 itibarıyla)
 
 **Tamamlanan:**
-- Express + MongoDB (Mongoose) bağlantısı, Docker Compose (`app` + `mongo`), Coolify uyumlu (sabit port bağlama yok, `expose` kullanılıyor)
-- Dil dosyası altyapısı — tüm metinler `src/lang/tr.js`'de, `t()` fonksiyonuyla çağrılıyor, tekrarlayan metin yok
-- Ortak sayfa düzeni: `src/views/partials/header.ejs` + `footer.ejs` (üst menü: Aileler / Kişiler / Kişi Özellikleri)
-- **FamilyGroup**: ad + slug (Türkçe karakter dönüşümlü, elle düzenlenebilir), CRUD tam
-- **AttributeDefinition**: admin panelinden yönetilen dinamik kişi özellikleri (key/label/tip/seçenekler/grup/sıra/zorunluluk/koşullu zorunluluk), sistem alanları (`officialFirstName`, `officialLastName`) korumalı, grup seçimi özel JS combobox ile (mevcut gruplar önerilir, yeni grup da yazılabilir)
-- **Person**: ad, soyadı (+ "soyadı yok" seçeneği, koşullu zorunluluk), doğum yılı, dinamik özellikler (aktif attribute'lar forma otomatik yansıyor, tipine göre render ediliyor)
-- **Slug + alias mekanizması**: aynı ad-soyad'lı kişiler arasında en yaşlı düz slug alır, diğerleri yıl eklenir, çakışmada -a/-b, yıl bilinmeyen rastgele kod alır; slug değişince eskisi alias olarak saklanır, `/aile-slug/kisi-slug` adresine 301 ile yönlendirilir
-- Basit kişi profil sayfası (`persons/show.ejs`) — geçici, tam detay sayfası (üst soy/alt soy/eş) henüz yok
+- Express + MongoDB (Mongoose) bağlantısı, Docker Compose (`app` + `mongo`), Coolify uyumlu
+- Dil dosyası altyapısı — `src/lang/tr.js`, `t()` fonksiyonu, tekrarsız metin
+- Ortak sayfa düzeni (`partials/header.ejs` + `footer.ejs`)
+- **FamilyGroup**: ad + slug + CRUD tam
+- **AttributeDefinition**: admin kontrollü dinamik kişi özellikleri, grup seçimi özel JS combobox ile
+- **Person**: ad/soyad (+ "soyadı yok"), doğum yılı, cinsiyet, dinamik özellikler
+- **Slug + alias mekanizması**: yaş bazlı öncelik, 301 yönlendirme
+- **Arama-ve-seç bileşeni**: `/kisiler/api/ara`, Türkçe karakter duyarlı
+- **ParentChild ilişkisi**: Baba/Anne/Çocuk ekleme (arama-ve-seç veya hızlı yeni kişi ekleme)
+- **Union (eş) ilişkisi**: çoklu evlilik desteği, kadın tarafının soyadı otomatik güncelleniyor (cinsiyet bilgisi varsa)
+- **Lakap sistemi**: kişisel lakap(lar) + sülale lakabı (kimden miras alındığı işaretlenebilir), kart görünümünde gösteriliyor
+- **TC şifreleme**: AES-256-GCM + HMAC-SHA256, düz metin hiçbir yerde saklanmıyor/render edilmiyor
+- Kişi detay/profil sayfası (`/aile-slug/kisi-slug`): üst soy, alt soy, eş, lakaplar
 
-**Henüz yok:**
-- Kişiler arası akrabalık bağı (ebeveyn/çocuk/eş) kurma — arama-ve-seç bileşeni bir sonraki adımda geliyor
-- Lakap sistemi, TC şifreleme, yetki modeli, görsel yükleme
-- D3 ağaç render, PDF export, ana sayfa özet blokları, RSS, yedekleme
+**Henüz yok / bilinen sınırlamalar:**
+- **Yetki modeli / kullanıcı girişi yok** — şu an herkes her kişiyi düzenleyebiliyor, "sadece admin TC görsün" kuralı sadece arayüzde TC'nin hiç render edilmemesiyle sağlanıyor, rol bazlı erişim kontrolü değil. Bu, Yetki Modeli adımı tamamlanınca sıkılaştırılacak.
+- Kişi/aile görseli yükleme
+- D3 ağaç render, origin-tag renk kodlama
+- A0/poster PDF export
+- Ana sayfa özet blokları, RSS/XML
+- Yedekleme sistemi
+
+## Ortam Değişkenleri (TC şifreleme için gerekli)
+
+```
+TC_ENCRYPTION_KEY=<64 hex karakter — node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+TC_HMAC_SECRET=<rastgele uzun bir metin, TC_ENCRYPTION_KEY'den farklı>
+```
+
+Coolify'da bu ikisi "Environment Variables" panelinden eklenmeli.
 
 ## Yerelde Çalıştırma
 
@@ -33,12 +50,10 @@ npm run dev
 docker compose up --build
 ```
 
-Coolify'da deploy edilirken domain/FQDN üzerinden erişim sağlanır (docker-compose'da sabit host portu yok, `expose` kullanılıyor).
-
 ## Proje Dokümanı
 
-Kapsamlı gereksinimler ve fazlı yol haritası için bkz. proje dokümanı (`secere-proje-dokumani.md` / Uruğ dokümanı), özellikle Bölüm 9 — sıralı küçük görev listesi.
+Kapsamlı gereksinimler ve fazlı yol haritası için bkz. Uruğ proje dokümanı, özellikle Bölüm 9.
 
 ## Sıradaki Adım
 
-Adım 7: Arama-ve-seç bileşeni — kişi ekleme/ilişki kurma akışlarında duplicate önleme (ad-soyad + doğum yılı ile arama, benzer kayıt uyarısı).
+Yetki Modeli (kullanıcı girişi + roller: global admin / aile admini / üye) — TC görünürlüğünün gerçek anlamda kısıtlanabilmesi için önce bu gerekiyor.

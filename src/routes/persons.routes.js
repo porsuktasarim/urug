@@ -7,6 +7,7 @@ const Union = require('../models/Union');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
 const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
+const { encryptTc, hashTc } = require('../utils/tcCrypto');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
 
@@ -60,6 +61,26 @@ function buildNicknames(body) {
   }
 
   return nicknames;
+}
+
+// Form verisinden gelen TC'yi şifreleyip Person'a uygular.
+// Boş bırakılırsa mevcut tcEncrypted/tcHash DOKUNULMADAN kalır (değiştirilmez).
+// NOT: Henüz gerçek bir kullanıcı/rol sistemi yok — bu yüzden "sadece admin
+// düzenleyebilsin" kuralı burada zorlanmıyor, sadece arayüzde TC değeri
+// asla düz metin olarak client'a geri gönderilmiyor (bkz. form.ejs).
+async function applyTcUpdate(person, rawTc, PersonModel) {
+  if (!rawTc || !rawTc.trim()) return; // dokunma
+
+  const trimmed = rawTc.trim();
+  const hash = hashTc(trimmed);
+
+  const clash = await PersonModel.findOne({ tcHash: hash, _id: { $ne: person._id } });
+  if (clash) {
+    throw new Error('Bu TC kimlik no zaten başka bir kişide kayıtlı.');
+  }
+
+  person.tcEncrypted = encryptTc(trimmed);
+  person.tcHash = hash;
 }
 
 // Liste — Türkçe alfabetik sıralama (ad'a göre)
@@ -195,6 +216,7 @@ router.post('/', async (req, res) => {
       attributes: attributeValues,
     });
 
+    await applyTcUpdate(person, req.body.tcNumber, Person);
     await person.save();
     await reassignSlugsForNameGroup(Person, person.nameKey);
 
@@ -320,6 +342,7 @@ router.post('/:id', async (req, res) => {
     existing.nameKey = newNameKey;
     existing.attributes = attributeValues;
 
+    await applyTcUpdate(existing, req.body.tcNumber, Person);
     await existing.save();
 
     // İsim değiştiyse hem eski hem yeni grup yeniden hesaplanmalı
