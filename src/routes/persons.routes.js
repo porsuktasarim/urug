@@ -30,6 +30,20 @@ async function getDynamicAttributeDefinitions() {
     .sort({ group: 1, order: 1 });
 }
 
+// Kişi formundaki TÜM alanları (çekirdek/sistem alanları + admin'in
+// eklediği dinamik özellikler) TEK bir sıralı liste olarak döner.
+// Sıralama tamamen "order" alanına göre yapılır (grup sadece başlık
+// gösterimi için kullanılır) — admin panelinden hem sistem alanlarının
+// hem özel alanların sırası tek bir yerden yönetilebilsin diye.
+async function getOrderedFormFields() {
+  return AttributeDefinition.find({
+    $or: [
+      { isSystem: true },
+      { isSystem: false, isActive: true, type: { $ne: 'photo' } },
+    ],
+  }).sort({ order: 1 });
+}
+
 // Person.attributes bir Map olduğu için EJS'te doğrudan okumak yerine
 // düz obje haline getirip forma öyle veriyoruz.
 function attributesToPlainObject(person) {
@@ -148,12 +162,14 @@ router.get('/api/ara', async (req, res) => {
 router.get('/new', requireLogin, async (req, res) => {
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
+  const formFields = await getOrderedFormFields();
 
   res.render('persons/form', {
     t,
     person: null,
     familyGroups,
     dynamicAttributes,
+    formFields,
     attributeValues: {},
     errorMessage: null,
   });
@@ -182,6 +198,7 @@ router.post('/', requireLogin, async (req, res) => {
   const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
+  const formFields = await getOrderedFormFields();
 
   const baseError = validateBase(req.body);
   const attributeValues = extractAttributeValues(dynamicAttributes, req.body);
@@ -250,6 +267,7 @@ router.post('/', requireLogin, async (req, res) => {
       person: req.body,
       familyGroups,
       dynamicAttributes,
+      formFields,
       attributeValues,
       errorMessage: err.message,
     });
@@ -266,6 +284,7 @@ router.get('/:id/duzenle', requireLogin, async (req, res) => {
 
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
+  const formFields = await getOrderedFormFields();
 
   // Mevcut akrabalık bağları (üst soy/alt soy) — form altında gösteriliyor.
   const parentLinks = await ParentChild.find({ childId: person._id }).populate({
@@ -313,6 +332,7 @@ router.get('/:id/duzenle', requireLogin, async (req, res) => {
     person,
     familyGroups,
     dynamicAttributes,
+    formFields,
     attributeValues: attributesToPlainObject(person),
     father: fatherPerson,
     mother: motherPerson,
@@ -334,6 +354,7 @@ router.post('/:id', requireLogin, async (req, res) => {
   const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
+  const formFields = await getOrderedFormFields();
 
   const baseError = validateBase(req.body);
   const attributeValues = extractAttributeValues(dynamicAttributes, req.body);
@@ -348,6 +369,7 @@ router.post('/:id', requireLogin, async (req, res) => {
       person: { _id: req.params.id, ...req.body },
       familyGroups,
       dynamicAttributes,
+      formFields,
       attributeValues,
       errorMessage,
     });
@@ -413,6 +435,7 @@ router.post('/:id', requireLogin, async (req, res) => {
       person: { _id: req.params.id, ...req.body },
       familyGroups,
       dynamicAttributes,
+      formFields,
       attributeValues,
       errorMessage: err.message,
     });
