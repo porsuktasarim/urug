@@ -1,8 +1,13 @@
 const express = require('express');
 const AttributeDefinition = require('../models/AttributeDefinition');
 const { t } = require('../lang');
+const { requireGlobalAdmin } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Bu router'daki TÜM route'lar global admin gerektirir — kişi özellikleri
+// yönetimi tamamen sistem geneli bir ayar, herkese açık değil.
+router.use(requireGlobalAdmin);
 
 // Liste — grup ve sıraya göre
 router.get('/', async (req, res) => {

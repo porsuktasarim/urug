@@ -12,6 +12,7 @@ const { personProfileUrl } = require('../utils/personLink');
 const { encryptTc, hashTc } = require('../utils/tcCrypto');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
+const { requireLogin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -143,7 +144,7 @@ router.get('/api/ara', async (req, res) => {
 });
 
 // Yeni ekleme formu
-router.get('/new', async (req, res) => {
+router.get('/new', requireLogin, async (req, res) => {
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
 
@@ -176,7 +177,7 @@ function validateBase(body) {
 }
 
 // Yeni kayıt oluşturma
-router.post('/', async (req, res) => {
+router.post('/', requireLogin, async (req, res) => {
   const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
@@ -235,7 +236,7 @@ router.post('/', async (req, res) => {
 });
 
 // Düzenleme formu
-router.get('/:id/duzenle', async (req, res) => {
+router.get('/:id/duzenle', requireLogin, async (req, res) => {
   const person = await Person.findById(req.params.id).populate('familyGroupId');
 
   if (!person) {
@@ -308,7 +309,7 @@ router.get('/:id/duzenle', async (req, res) => {
 });
 
 // Güncelleme
-router.post('/:id', async (req, res) => {
+router.post('/:id', requireLogin, async (req, res) => {
   const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
@@ -378,7 +379,7 @@ router.post('/:id', async (req, res) => {
 });
 
 // Silme
-router.post('/:id/sil', async (req, res) => {
+router.post('/:id/sil', requireLogin, async (req, res) => {
   const person = await Person.findById(req.params.id);
   if (!person) {
     return res.redirect('/kisiler');

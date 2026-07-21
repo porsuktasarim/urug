@@ -10,6 +10,7 @@ services:
       - MONGO_URI=mongodb://mongo:27017/urug
       - TC_ENCRYPTION_KEY=${TC_ENCRYPTION_KEY}
       - TC_HMAC_SECRET=${TC_HMAC_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
     depends_on:
       - mongo
     healthcheck:

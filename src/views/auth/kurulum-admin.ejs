@@ -1,0 +1,31 @@
+<%- include('../partials/header', { title: 'İlk Admin Oluştur', t }) %>
+
+  <div style="max-width: 400px;">
+    <h1 class="h4 mb-1">İlk Admin Oluştur</h1>
+    <p class="text-muted small mb-4">
+      Sistemde henüz hiç kullanıcı yok. Oluşturduğun bu ilk hesap otomatik olarak
+      global admin olacak. Bu sayfa bir daha kullanılamayacak.
+    </p>
+
+    <% if (errorMessage) { %>
+      <div class="alert alert-danger"><%= errorMessage %></div>
+    <% } %>
+
+    <form method="POST" action="/kurulum-admin">
+      <div class="mb-3">
+        <label class="form-label">Kullanıcı Adı</label>
+        <input type="text" name="username" class="form-control" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Şifre <span class="text-muted small">(en az 8 karakter)</span></label>
+        <input type="password" name="password" class="form-control" required minlength="8">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Şifre (tekrar)</label>
+        <input type="password" name="passwordConfirm" class="form-control" required minlength="8">
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Admin Hesabı Oluştur</button>
+    </form>
+  </div>
+
+<%- include('../partials/footer', { t }) %>

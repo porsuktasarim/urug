@@ -2,6 +2,7 @@ const express = require('express');
 const FamilyGroup = require('../models/FamilyGroup');
 const { slugify } = require('../utils/slugify');
 const { t } = require('../lang');
+const { requireLogin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get('/', async (req, res) => {
 });
 
 // Yeni ekleme formu
-router.get('/new', (req, res) => {
+router.get('/new', requireLogin, (req, res) => {
   res.render('family-groups/form', {
     t,
     familyGroup: null,
@@ -26,7 +27,7 @@ router.get('/new', (req, res) => {
 });
 
 // Yeni kayıt oluşturma
-router.post('/', async (req, res) => {
+router.post('/', requireLogin, async (req, res) => {
   const { name, slug } = req.body;
 
   try {
@@ -51,7 +52,7 @@ router.post('/', async (req, res) => {
 });
 
 // Düzenleme formu
-router.get('/:id/duzenle', async (req, res) => {
+router.get('/:id/duzenle', requireLogin, async (req, res) => {
   const familyGroup = await FamilyGroup.findById(req.params.id);
 
   if (!familyGroup) {
@@ -62,7 +63,7 @@ router.get('/:id/duzenle', async (req, res) => {
 });
 
 // Güncelleme
-router.post('/:id', async (req, res) => {
+router.post('/:id', requireLogin, async (req, res) => {
   const { name, slug } = req.body;
 
   try {
@@ -89,7 +90,7 @@ router.post('/:id', async (req, res) => {
 });
 
 // Silme
-router.post('/:id/sil', async (req, res) => {
+router.post('/:id/sil', requireLogin, async (req, res) => {
   await FamilyGroup.findByIdAndDelete(req.params.id);
   res.redirect('/aileler');
 });

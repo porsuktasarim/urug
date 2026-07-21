@@ -16,16 +16,32 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="mainNav">
-          <ul class="navbar-nav ms-auto">
+          <ul class="navbar-nav ms-auto align-items-md-center">
             <li class="nav-item">
               <a class="nav-link" href="/aileler"><%= t('family.title') %></a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="/kisiler"><%= t('person.title') %></a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/admin/ozellikler"><%= t('attribute.title') %></a>
-            </li>
+            <% if (typeof isGlobalAdmin !== 'undefined' && isGlobalAdmin) { %>
+              <li class="nav-item">
+                <a class="nav-link" href="/admin/ozellikler"><%= t('attribute.title') %></a>
+              </li>
+            <% } %>
+            <% if (typeof currentUsername !== 'undefined' && currentUsername) { %>
+              <li class="nav-item text-light small me-2">
+                <%= currentUsername %>
+              </li>
+              <li class="nav-item">
+                <form action="/cikis" method="POST" class="d-inline">
+                  <button type="submit" class="btn btn-sm btn-outline-light">Çıkış Yap</button>
+                </form>
+              </li>
+            <% } else { %>
+              <li class="nav-item">
+                <a class="btn btn-sm btn-outline-light" href="/giris">Giriş Yap</a>
+              </li>
+            <% } %>
           </ul>
         </div>
       </div>

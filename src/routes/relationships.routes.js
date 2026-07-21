@@ -6,8 +6,12 @@ const Union = require('../models/Union');
 const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
+const { requireLogin } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Bu router'daki TÜM route'lar giriş gerektirir — akrabalık bağı kurma tamamen bir düzenleme işlemi.
+router.use(requireLogin);
 
 const RELATION_LABELS = {
   father: 'Baba',
