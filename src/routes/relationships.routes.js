@@ -93,9 +93,7 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
   if (!officialFirstName || !officialFirstName.trim()) {
     return rerenderWithError('Ad zorunludur.');
   }
-  if (!familyGroupId) {
-    return rerenderWithError('Aile seçimi zorunludur.');
-  }
+  // Aile seçimi opsiyonel — dışarıdan gelen kişiler için boş bırakılabilir.
   if (hasNoLastName !== 'on' && (!officialLastName || !officialLastName.trim())) {
     return rerenderWithError('Soyadı zorunludur (ya da "Soyadı yok" seçeneğini işaretleyin).');
   }
@@ -105,7 +103,7 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
     const finalLastName = hasNoLastName === 'on' ? null : officialLastName.trim();
 
     const newPerson = new Person({
-      familyGroupId,
+      familyGroupId: familyGroupId || null,
       officialFirstName: finalFirstName,
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',

@@ -22,7 +22,7 @@
 
       <div class="mb-3">
         <label class="form-label"><%= t('person.fields.familyGroupId') %></label>
-        <select name="familyGroupId" class="form-select" required>
+        <select name="familyGroupId" class="form-select">
           <option value="">—</option>
           <% familyGroups.forEach(function (fg) { %>
             <option value="<%= fg._id %>" <%= selectedFamilyId === String(fg._id) ? 'selected' : '' %>>
@@ -213,6 +213,19 @@
       </div>
 
       <div class="mb-2">
+        <strong>Kardeşler:</strong>
+        <% if (typeof siblings !== 'undefined' && siblings.length > 0) { %>
+          <ul class="mb-1">
+            <% siblings.forEach(function (s) { %>
+              <li><%= displayName(s) %><% if (s.birthYear) { %> <span class="text-muted small">(<%= s.birthYear %>)</span><% } %></li>
+            <% }); %>
+          </ul>
+        <% } else { %>
+          <span class="text-muted d-block mb-1">yok</span>
+        <% } %>
+      </div>
+
+      <div class="mb-2">
         <strong>Eş(ler):</strong>
         <% if (typeof spouses !== 'undefined' && spouses.length > 0) { %>
           <ul class="mb-1">
@@ -231,7 +244,12 @@
         <% if (typeof children !== 'undefined' && children.length > 0) { %>
           <ul class="mb-1">
             <% children.forEach(function (c) { %>
-              <li><%= displayName(c) %></li>
+              <% var cLabel = typeof childRelationLabel !== 'undefined' ? childRelationLabel(c) : ''; %>
+              <li>
+                <%= displayName(c) %>
+                <% if (cLabel) { %><span class="text-muted small"> (<%= cLabel %>)</span><% } %>
+                <% if (c.birthYear) { %><span class="text-muted small"> · <%= c.birthYear %></span><% } %>
+              </li>
             <% }); %>
           </ul>
         <% } else { %>

@@ -13,7 +13,7 @@
       </div>
     <% } %>
     <p class="text-muted">
-      <%= person.familyGroupId ? person.familyGroupId.name : '' %>
+      <%= person.familyGroupId ? person.familyGroupId.name : 'Aile bilgisi yok' %>
       <% if (person.birthYear) { %> · <%= person.birthYear %><% } %>
     </p>
 
@@ -21,8 +21,9 @@
     <div class="mb-1">
       <strong>Baba:</strong>
       <% if (father) { %>
-        <% if (father.familyGroupId && father.familyGroupId.slug && father.slug) { %>
-          <a href="/<%= father.familyGroupId.slug %>/<%= father.slug %>"><%= displayName(father) %></a>
+        <% var fatherUrl = personProfileUrl(father); %>
+        <% if (fatherUrl) { %>
+          <a href="<%= fatherUrl %>"><%= displayName(father) %></a>
         <% } else { %>
           <%= displayName(father) %>
         <% } %>
@@ -33,8 +34,9 @@
     <div class="mb-3">
       <strong>Anne:</strong>
       <% if (mother) { %>
-        <% if (mother.familyGroupId && mother.familyGroupId.slug && mother.slug) { %>
-          <a href="/<%= mother.familyGroupId.slug %>/<%= mother.slug %>"><%= displayName(mother) %></a>
+        <% var motherUrl = personProfileUrl(mother); %>
+        <% if (motherUrl) { %>
+          <a href="<%= motherUrl %>"><%= displayName(mother) %></a>
         <% } else { %>
           <%= displayName(mother) %>
         <% } %>
@@ -43,13 +45,33 @@
       <% } %>
     </div>
 
+    <h2 class="h6 text-muted mt-4">Kardeşler</h2>
+    <% if (siblings.length > 0) { %>
+      <ul>
+        <% siblings.forEach(function (sib) { %>
+          <% var sibUrl = personProfileUrl(sib); %>
+          <li>
+            <% if (sibUrl) { %>
+              <a href="<%= sibUrl %>"><%= displayName(sib) %></a>
+            <% } else { %>
+              <%= displayName(sib) %>
+            <% } %>
+            <% if (sib.birthYear) { %><span class="text-muted small"> (<%= sib.birthYear %>)</span><% } %>
+          </li>
+        <% }); %>
+      </ul>
+    <% } else { %>
+      <p class="text-muted">Kayıtlı kardeş yok.</p>
+    <% } %>
+
     <h2 class="h6 text-muted mt-4">Eş</h2>
     <% if (spouses.length > 0) { %>
       <ul>
         <% spouses.forEach(function (spouse) { %>
+          <% var spouseUrl = personProfileUrl(spouse); %>
           <li>
-            <% if (spouse.familyGroupId && spouse.familyGroupId.slug && spouse.slug) { %>
-              <a href="/<%= spouse.familyGroupId.slug %>/<%= spouse.slug %>"><%= displayName(spouse) %></a>
+            <% if (spouseUrl) { %>
+              <a href="<%= spouseUrl %>"><%= displayName(spouse) %></a>
             <% } else { %>
               <%= displayName(spouse) %>
             <% } %>
@@ -64,12 +86,16 @@
     <% if (children.length > 0) { %>
       <ul>
         <% children.forEach(function (child) { %>
+          <% var childUrl = personProfileUrl(child); %>
+          <% var relLabel = childRelationLabel(child); %>
           <li>
-            <% if (child.familyGroupId && child.familyGroupId.slug && child.slug) { %>
-              <a href="/<%= child.familyGroupId.slug %>/<%= child.slug %>"><%= displayName(child) %></a>
+            <% if (childUrl) { %>
+              <a href="<%= childUrl %>"><%= displayName(child) %></a>
             <% } else { %>
               <%= displayName(child) %>
             <% } %>
+            <% if (relLabel) { %><span class="text-muted small"> (<%= relLabel %>)</span><% } %>
+            <% if (child.birthYear) { %><span class="text-muted small"> · <%= child.birthYear %></span><% } %>
           </li>
         <% }); %>
       </ul>

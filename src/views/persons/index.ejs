@@ -17,15 +17,14 @@
           <div>
             <strong><%= displayName(p) %></strong>
             <span class="text-muted ms-2">
-              <%= p.familyGroupId ? p.familyGroupId.name : '—' %>
+              <%= p.familyGroupId ? p.familyGroupId.name : 'Aile bilgisi yok' %>
             </span>
             <% if (p.hasNoLastName) { %>
               <span class="badge bg-secondary ms-1">soyadı yok</span>
             <% } %>
-            <% if (p.slug && p.familyGroupId && p.familyGroupId.slug) { %>
-              <a href="/<%= p.familyGroupId.slug %>/<%= p.slug %>" class="text-muted small ms-2">
-                /<%= p.familyGroupId.slug %>/<%= p.slug %>
-              </a>
+            <% var pUrl = personProfileUrl(p); %>
+            <% if (pUrl) { %>
+              <a href="<%= pUrl %>" class="text-muted small ms-2"><%= pUrl %></a>
             <% } %>
           </div>
           <div class="d-flex gap-2">

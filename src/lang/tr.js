@@ -78,7 +78,7 @@ module.exports = {
   person: {
     title: 'Kişiler',
     fields: {
-      familyGroupId: 'Aile',
+      familyGroupId: 'Aile (opsiyonel)',
       officialFirstName: 'Ad',
       officialLastName: 'Soyadı',
       hasNoLastName: 'Soyadı yok (1934 öncesi)',

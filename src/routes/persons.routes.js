@@ -7,6 +7,8 @@ const Union = require('../models/Union');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
 const { computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
+const { sortByBirthYear, childRelationLabel, getSiblings } = require('../utils/familyRelations');
+const { personProfileUrl } = require('../utils/personLink');
 const { encryptTc, hashTc } = require('../utils/tcCrypto');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
@@ -90,7 +92,7 @@ router.get('/', async (req, res) => {
     .collation({ locale: 'tr' })
     .sort({ officialFirstName: 1 });
 
-  res.render('persons/index', { persons, t, displayName });
+  res.render('persons/index', { persons, t, displayName, personProfileUrl });
 });
 
 // Arama sayfası — genel amaçlı arama-ve-seç bileşeni.
@@ -156,14 +158,13 @@ router.get('/new', async (req, res) => {
 });
 
 function validateBase(body) {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear } = body;
+  const { officialFirstName, officialLastName, hasNoLastName, birthYear } = body;
 
   if (!officialFirstName || !officialFirstName.trim()) {
     return 'Ad zorunludur.';
   }
-  if (!familyGroupId) {
-    return 'Aile seçimi zorunludur.';
-  }
+  // Aile seçimi artık opsiyonel — dışarıdan (evlilik yoluyla) gelen ve
+  // doğum ailesi sistemde kayıtlı olmayan kişiler için familyGroupId boş bırakılabilir.
   // Koşullu zorunluluk: hasNoLastName işaretli değilse soyadı zorunlu
   if (hasNoLastName !== 'on' && (!officialLastName || !officialLastName.trim())) {
     return 'Soyadı zorunludur (ya da "Soyadı yok" seçeneğini işaretleyin).';
@@ -203,7 +204,7 @@ router.post('/', async (req, res) => {
     const finalLastName = hasNoLastName === 'on' ? null : officialLastName.trim();
 
     const person = new Person({
-      familyGroupId,
+      familyGroupId: familyGroupId || null,
       officialFirstName: finalFirstName,
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
@@ -256,6 +257,15 @@ router.get('/:id/duzenle', async (req, res) => {
 
   const father = parentLinks.find((l) => l.parentSide === 'father');
   const mother = parentLinks.find((l) => l.parentSide === 'mother');
+  const fatherPerson = father ? father.parentId : null;
+  const motherPerson = mother ? mother.parentId : null;
+
+  const siblings = await getSiblings(
+    ParentChild,
+    person._id,
+    fatherPerson ? fatherPerson._id : null,
+    motherPerson ? motherPerson._id : null
+  );
 
   // Eş(ler) — çoklu evlilik desteklenir, birden fazla Union kaydı olabilir.
   const unions = await Union.find({
@@ -282,10 +292,12 @@ router.get('/:id/duzenle', async (req, res) => {
     familyGroups,
     dynamicAttributes,
     attributeValues: attributesToPlainObject(person),
-    father: father ? father.parentId : null,
-    mother: mother ? mother.parentId : null,
+    father: fatherPerson,
+    mother: motherPerson,
     spouses,
-    children: childLinks.map((l) => l.childId),
+    children: sortByBirthYear(childLinks.map((l) => l.childId)),
+    siblings: sortByBirthYear(siblings),
+    childRelationLabel,
     displayName,
     personalNicknamesValue,
     familyLakabValue: familyLakabEntry ? familyLakabEntry.value : '',
@@ -330,7 +342,7 @@ router.post('/:id', async (req, res) => {
     const finalLastName = hasNoLastName === 'on' ? null : officialLastName.trim();
     const newNameKey = computeNameKey(finalFirstName, finalLastName);
 
-    existing.familyGroupId = familyGroupId;
+    existing.familyGroupId = familyGroupId || null;
     existing.officialFirstName = finalFirstName;
     existing.officialLastName = finalLastName;
     existing.hasNoLastName = hasNoLastName === 'on';

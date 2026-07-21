@@ -20,7 +20,9 @@ const personSchema = new mongoose.Schema(
     familyGroupId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'FamilyGroup',
-      required: [true, 'Kişi bir aileye bağlı olmalıdır.'],
+      default: null,
+      // Opsiyonel: evlilik yoluyla köye/aileye dahil olup doğum ailesi
+      // sistemde kayıtlı olmayan kişiler için (örn. dışarıdan gelen eşler).
     },
     officialFirstName: {
       type: String,
