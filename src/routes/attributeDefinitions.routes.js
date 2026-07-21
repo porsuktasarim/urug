@@ -9,13 +9,49 @@ const router = express.Router();
 // yönetimi tamamen sistem geneli bir ayar, herkese açık değil.
 router.use(requireGlobalAdmin);
 
-// Liste — grup ve sıraya göre
+// Liste — TEK bir global "order" alanına göre sıralı (kişi formundaki
+// gerçek render sırasının birebir aynısı). Grup, sadece görsel başlık için.
 router.get('/', async (req, res) => {
-  const attributes = await AttributeDefinition.find()
-    .collation({ locale: 'tr' })
-    .sort({ group: 1, order: 1 });
+  const attributes = await AttributeDefinition.find().sort({ order: 1 });
 
   res.render('attribute-definitions/index', { attributes, t });
+});
+
+/**
+ * Bir alanı listede bir pozisyon yukarı/aşağı taşır ve TÜM listeyi
+ * ardından sıralı olarak (0,1,2...) yeniden numaralandırır — bu, order
+ * değerlerinde çakışma/eşitlik gibi kenar durumlarını tamamen ortadan
+ * kaldırır ve "kolay sıralama" ihtiyacını (sayı yazmak yerine tek tık)
+ * karşılar.
+ */
+async function moveAttribute(id, direction) {
+  const all = await AttributeDefinition.find().sort({ order: 1 });
+  const index = all.findIndex((a) => String(a._id) === String(id));
+  if (index === -1) return;
+
+  const swapIndex = index + direction;
+  if (swapIndex < 0 || swapIndex >= all.length) return;
+
+  const temp = all[index];
+  all[index] = all[swapIndex];
+  all[swapIndex] = temp;
+
+  for (let i = 0; i < all.length; i += 1) {
+    if (all[i].order !== i) {
+      all[i].order = i;
+      await all[i].save();
+    }
+  }
+}
+
+router.post('/:id/yukari', async (req, res) => {
+  await moveAttribute(req.params.id, -1);
+  res.redirect('/admin/ozellikler');
+});
+
+router.post('/:id/asagi', async (req, res) => {
+  await moveAttribute(req.params.id, 1);
+  res.redirect('/admin/ozellikler');
 });
 
 // Var olan tüm grup adlarını (tekrarsız, TR alfabetik) döner —

@@ -6,6 +6,7 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const { connectDB } = require('./config/db');
 const { ensureSystemAttributes } = require('./config/seedSystemAttributes');
+const { migratePersonSearchAndSlugKeys } = require('./config/migratePersonKeys');
 const { t } = require('./lang');
 const familyGroupsRouter = require('./routes/familyGroups.routes');
 const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
@@ -72,6 +73,7 @@ async function start() {
     console.log(t('system.dbConnected'));
 
     await ensureSystemAttributes();
+    await migratePersonSearchAndSlugKeys();
 
     app.listen(PORT, () => {
       console.log(t('system.serverStarted', { port: PORT }));
