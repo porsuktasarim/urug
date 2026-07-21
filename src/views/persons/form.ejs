@@ -75,10 +75,33 @@
 
           <% } else if (field.key === 'birthYear') { %>
             <div class="mb-3">
-              <label class="form-label"><%= t('person.fields.birthYear') %></label>
-              <input type="number" name="birthYear" class="form-control"
-                     value="<%= person && person.birthYear ? person.birthYear : '' %>">
-              <div class="form-text"><%= t('person.birthYearHint') %></div>
+              <label class="form-label">Doğum Tarihi</label>
+              <div class="d-flex gap-2 flex-wrap align-items-end mb-1">
+                <div>
+                  <label class="form-label small mb-1">Takvim</label>
+                  <select name="birthCalendarType" id="birthCalendarType" class="form-select">
+                    <option value="miladi" <%= !person || !person.birthCalendarType || person.birthCalendarType === 'miladi' ? 'selected' : '' %>>Miladi</option>
+                    <option value="hicri" <%= person && person.birthCalendarType === 'hicri' ? 'selected' : '' %>>Hicri</option>
+                    <option value="rumi" <%= person && person.birthCalendarType === 'rumi' ? 'selected' : '' %>>Rumi</option>
+                  </select>
+                </div>
+                <div id="birthDayWrap">
+                  <label class="form-label small mb-1">Gün</label>
+                  <input type="number" name="birthDay" id="birthDay" class="form-control" style="width:80px;" min="1" max="31"
+                         value="<%= person && person.birthDay ? person.birthDay : '' %>">
+                </div>
+                <div id="birthMonthWrap">
+                  <label class="form-label small mb-1">Ay</label>
+                  <input type="number" name="birthMonth" id="birthMonth" class="form-control" style="width:80px;" min="1" max="12"
+                         value="<%= person && person.birthMonth ? person.birthMonth : '' %>">
+                </div>
+                <div>
+                  <label class="form-label small mb-1" id="birthYearLabel">Yıl</label>
+                  <input type="number" name="birthYear" id="birthYear" class="form-control" style="width:100px;"
+                         value="<%= person && person.birthCalendarType && person.birthCalendarType !== 'miladi' ? (person.birthOriginalYear || '') : (person && person.birthYear ? person.birthYear : '') %>">
+                </div>
+              </div>
+              <div class="form-text" id="birthConvertedPreview"></div>
             </div>
             <% if (person && person.slug) { %>
               <div class="mb-3">
@@ -86,6 +109,37 @@
                 <div class="form-control-plaintext text-muted">/<%= person.familyGroupId && person.familyGroupId.slug ? person.familyGroupId.slug : '...' %>/<%= person.slug %></div>
               </div>
             <% } %>
+
+          <% } else if (field.key === 'deathYear') { %>
+            <div class="mb-3">
+              <label class="form-label">Ölüm Tarihi <span class="text-muted small">(bilinmiyorsa/hayattaysa boş bırak)</span></label>
+              <div class="d-flex gap-2 flex-wrap align-items-end mb-1">
+                <div>
+                  <label class="form-label small mb-1">Takvim</label>
+                  <select name="deathCalendarType" id="deathCalendarType" class="form-select">
+                    <option value="miladi" <%= !person || !person.deathCalendarType || person.deathCalendarType === 'miladi' ? 'selected' : '' %>>Miladi</option>
+                    <option value="hicri" <%= person && person.deathCalendarType === 'hicri' ? 'selected' : '' %>>Hicri</option>
+                    <option value="rumi" <%= person && person.deathCalendarType === 'rumi' ? 'selected' : '' %>>Rumi</option>
+                  </select>
+                </div>
+                <div id="deathDayWrap">
+                  <label class="form-label small mb-1">Gün</label>
+                  <input type="number" name="deathDay" id="deathDay" class="form-control" style="width:80px;" min="1" max="31"
+                         value="<%= person && person.deathDay ? person.deathDay : '' %>">
+                </div>
+                <div id="deathMonthWrap">
+                  <label class="form-label small mb-1">Ay</label>
+                  <input type="number" name="deathMonth" id="deathMonth" class="form-control" style="width:80px;" min="1" max="12"
+                         value="<%= person && person.deathMonth ? person.deathMonth : '' %>">
+                </div>
+                <div>
+                  <label class="form-label small mb-1" id="deathYearLabel">Yıl</label>
+                  <input type="number" name="deathYear" id="deathYear" class="form-control" style="width:100px;"
+                         value="<%= person && person.deathCalendarType && person.deathCalendarType !== 'miladi' ? (person.deathOriginalYear || '') : (person && person.deathYear ? person.deathYear : '') %>">
+                </div>
+              </div>
+              <div class="form-text" id="deathConvertedPreview"></div>
+            </div>
 
           <% } else if (field.key === 'tcNumber') { %>
             <div class="mb-4">
@@ -289,6 +343,63 @@
       </div>
     <% } %>
   </div>
+
+  <script>
+    (function () {
+      // Hicri/Rumi -> Miladi yaklaşık dönüşüm (utils/calendarConversion.js ile
+      // aynı formüller — sadece canlı önizleme için, asıl dönüşüm sunucuda yapılır).
+      function hijriToGregorian(y) { return Math.round(y + 622 - y / 33); }
+      function rumiToGregorian(y) { return y + 584; }
+
+      function setupDateField(prefix) {
+        var calendarSelect = document.getElementById(prefix + 'CalendarType');
+        var dayWrap = document.getElementById(prefix + 'DayWrap');
+        var monthWrap = document.getElementById(prefix + 'MonthWrap');
+        var yearInput = document.getElementById(prefix + 'Year');
+        var yearLabel = document.getElementById(prefix + 'YearLabel');
+        var preview = document.getElementById(prefix + 'ConvertedPreview');
+        if (!calendarSelect) return;
+
+        function update() {
+          var type = calendarSelect.value;
+          var dayInput = document.getElementById(prefix + 'Day');
+          var monthInput = document.getElementById(prefix + 'Month');
+
+          if (type === 'miladi') {
+            dayWrap.style.display = '';
+            monthWrap.style.display = '';
+            dayInput.disabled = false;
+            monthInput.disabled = false;
+            yearLabel.textContent = 'Yıl';
+            preview.textContent = '';
+          } else {
+            dayWrap.style.display = 'none';
+            monthWrap.style.display = 'none';
+            dayInput.disabled = true;
+            monthInput.disabled = true;
+            dayInput.value = '';
+            monthInput.value = '';
+            yearLabel.textContent = type === 'hicri' ? 'Yıl (Hicri)' : 'Yıl (Rumi)';
+
+            var y = Number(yearInput.value);
+            if (yearInput.value && !isNaN(y)) {
+              var converted = type === 'hicri' ? hijriToGregorian(y) : rumiToGregorian(y);
+              preview.textContent = 'Miladi karşılığı (yaklaşık): ' + converted;
+            } else {
+              preview.textContent = '';
+            }
+          }
+        }
+
+        calendarSelect.addEventListener('change', update);
+        yearInput.addEventListener('input', update);
+        update();
+      }
+
+      setupDateField('birth');
+      setupDateField('death');
+    })();
+  </script>
 
   <script>
     (function () {

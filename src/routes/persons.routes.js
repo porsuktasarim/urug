@@ -7,6 +7,7 @@ const Union = require('../models/Union');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
 const { computeEffectiveSurname, computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { computeSearchKey } = require('../utils/personSearch');
+const { parseDateFields } = require('../utils/dateFieldParser');
 const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
 const { sortByBirthYear, childRelationLabel, getSiblings } = require('../utils/familyRelations');
 const { personProfileUrl } = require('../utils/personLink');
@@ -188,7 +189,7 @@ router.get('/new', requireLogin, async (req, res) => {
 });
 
 function validateBase(body) {
-  const { officialFirstName, officialLastName, hasNoLastName, birthYear } = body;
+  const { officialFirstName, officialLastName, hasNoLastName } = body;
 
   if (!officialFirstName || !officialFirstName.trim()) {
     return 'Ad zorunludur.';
@@ -199,15 +200,19 @@ function validateBase(body) {
   if (hasNoLastName !== 'on' && (!officialLastName || !officialLastName.trim())) {
     return 'Soyadı zorunludur (ya da "Soyadı yok" seçeneğini işaretleyin).';
   }
-  if (birthYear && Number.isNaN(Number(birthYear))) {
-    return 'Doğum yılı sayı olmalıdır.';
-  }
+
+  const birthDate = parseDateFields('birth', body);
+  if (birthDate.error) return `Doğum tarihi: ${birthDate.error}`;
+
+  const deathDate = parseDateFields('death', body);
+  if (deathDate.error) return `Ölüm tarihi: ${deathDate.error}`;
+
   return null;
 }
 
 // Yeni kayıt oluşturma
 router.post('/', requireLogin, async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear, gender, marriedLastName, useCombinedLastName } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -236,6 +241,8 @@ router.post('/', requireLogin, async (req, res) => {
     const finalMarriedLastName = marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null;
     const finalFamilyGroupId = familyGroupId || null;
     const finalNicknames = buildNicknames(req.body);
+    const birthDate = parseDateFields('birth', req.body);
+    const deathDate = parseDateFields('death', req.body);
 
     const effectiveSurname = await computeEffectiveSurname(
       {
@@ -252,7 +259,16 @@ router.post('/', requireLogin, async (req, res) => {
       officialFirstName: finalFirstName,
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
-      birthYear: birthYear ? Number(birthYear) : null,
+      birthYear: birthDate.year,
+      birthDay: birthDate.day,
+      birthMonth: birthDate.month,
+      birthCalendarType: birthDate.calendarType,
+      birthOriginalYear: birthDate.originalYear,
+      deathYear: deathDate.year,
+      deathDay: deathDate.day,
+      deathMonth: deathDate.month,
+      deathCalendarType: deathDate.calendarType,
+      deathOriginalYear: deathDate.originalYear,
       gender: gender || null,
       marriedLastName: finalMarriedLastName,
       useCombinedLastName: useCombinedLastName === 'on',
@@ -363,7 +379,7 @@ router.get('/:id/duzenle', requireLogin, async (req, res) => {
 
 // Güncelleme
 router.post('/:id', requireLogin, async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, birthYear, gender, marriedLastName, useCombinedLastName } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -399,6 +415,8 @@ router.post('/:id', requireLogin, async (req, res) => {
     const finalMarriedLastName = marriedLastName && marriedLastName.trim() ? marriedLastName.trim() : null;
     const finalFamilyGroupId = familyGroupId || null;
     const finalNicknames = buildNicknames(req.body);
+    const birthDate = parseDateFields('birth', req.body);
+    const deathDate = parseDateFields('death', req.body);
 
     const effectiveSurname = await computeEffectiveSurname(
       {
@@ -415,7 +433,16 @@ router.post('/:id', requireLogin, async (req, res) => {
     existing.officialFirstName = finalFirstName;
     existing.officialLastName = finalLastName;
     existing.hasNoLastName = hasNoLastName === 'on';
-    existing.birthYear = birthYear ? Number(birthYear) : null;
+    existing.birthYear = birthDate.year;
+    existing.birthDay = birthDate.day;
+    existing.birthMonth = birthDate.month;
+    existing.birthCalendarType = birthDate.calendarType;
+    existing.birthOriginalYear = birthDate.originalYear;
+    existing.deathYear = deathDate.year;
+    existing.deathDay = deathDate.day;
+    existing.deathMonth = deathDate.month;
+    existing.deathCalendarType = deathDate.calendarType;
+    existing.deathOriginalYear = deathDate.originalYear;
     existing.gender = gender || null;
     existing.marriedLastName = finalMarriedLastName;
     existing.useCombinedLastName = useCombinedLastName === 'on';

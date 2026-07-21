@@ -56,6 +56,16 @@ async function ensureSystemAttributes() {
       order: 3,
     },
     {
+      key: 'deathYear',
+      label: 'Ölüm Tarihi',
+      type: 'text',
+      isRequired: false,
+      isActive: true,
+      isSystem: true,
+      group: 'Kimlik Bilgileri',
+      order: 3.5,
+    },
+    {
       key: 'tcNumber',
       label: 'TC Kimlik No',
       type: 'text',

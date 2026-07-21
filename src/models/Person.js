@@ -45,8 +45,32 @@ const personSchema = new mongoose.Schema(
     birthYear: {
       type: Number,
       default: null,
-      // Slug üretiminde "en yaşlı" belirlemek için kullanılır (bkz. utils/personSlug.js)
+      // HER ZAMAN Miladi (Gregorian) yıl — slug üretiminde "en yaşlı" belirlemek,
+      // sıralama, yaş hesapları için kullanılır (bkz. utils/personSlug.js).
+      // Hicri/Rumi girilirse utils/calendarConversion.js ile buraya çevrilerek yazılır.
     },
+    birthDay: { type: Number, default: null, min: 1, max: 31 },
+    birthMonth: { type: Number, default: null, min: 1, max: 12 },
+    // Kullanıcının GERÇEKTEN girdiği takvim tipi ve o takvimdeki ham yıl —
+    // sadece görüntüleme/şeffaflık için saklanır (ör. "Hicri 1350" olarak
+    // girildi ama sistemde Miladi 1931 olarak da tutuluyor). birthYear alanı
+    // her zaman Miladi'dir, hesaplamalar hep ona göre yapılır.
+    birthCalendarType: {
+      type: String,
+      enum: ['miladi', 'hicri', 'rumi'],
+      default: 'miladi',
+    },
+    birthOriginalYear: { type: Number, default: null },
+
+    deathYear: { type: Number, default: null }, // her zaman Miladi
+    deathDay: { type: Number, default: null, min: 1, max: 31 },
+    deathMonth: { type: Number, default: null, min: 1, max: 12 },
+    deathCalendarType: {
+      type: String,
+      enum: ['miladi', 'hicri', 'rumi'],
+      default: 'miladi',
+    },
+    deathOriginalYear: { type: Number, default: null },
 
     // Evlilik (Union) kurulduğunda otomatik doldurulur (kadın tarafı için,
     // bkz. relationships.routes.js), ama elle de düzenlenebilir.
