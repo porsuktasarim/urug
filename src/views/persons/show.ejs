@@ -14,7 +14,7 @@
     <% } %>
     <p class="text-muted">
       <%= person.familyGroupId ? person.familyGroupId.name : 'Aile bilgisi yok' %>
-      <% if (person.birthYear) { %> · <%= person.birthYear %><% } %><% if (person.deathYear) { %> - <%= person.deathYear %><% } %>
+      <% if (person.birthYear) { %> · <%= formatHistoricalYear(person.birthYear) %><% } %><% if (person.deathYear) { %> - <%= formatHistoricalYear(person.deathYear) %><% } %>
     </p>
 
     <h2 class="h6 text-muted mt-4">Üst Soy</h2>
@@ -56,7 +56,7 @@
             <% } else { %>
               <%= displayName(sib) %>
             <% } %>
-            <% if (sib.birthYear) { %><span class="text-muted small"> (<%= sib.birthYear %>)</span><% } %>
+            <% if (sib.birthYear) { %><span class="text-muted small"> (<%= formatHistoricalYear(sib.birthYear) %>)</span><% } %>
           </li>
         <% }); %>
       </ul>
@@ -95,7 +95,7 @@
               <%= displayName(child) %>
             <% } %>
             <% if (relLabel) { %><span class="text-muted small"> (<%= relLabel %>)</span><% } %>
-            <% if (child.birthYear) { %><span class="text-muted small"> · <%= child.birthYear %></span><% } %>
+            <% if (child.birthYear) { %><span class="text-muted small"> · <%= formatHistoricalYear(child.birthYear) %></span><% } %>
           </li>
         <% }); %>
       </ul>

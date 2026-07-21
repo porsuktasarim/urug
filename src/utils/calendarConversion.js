@@ -41,6 +41,15 @@ function rumiYearToGregorian(rumiYear) {
 }
 
 /**
+ * Miladi yılı Rumi yıla çevirir (ters yön).
+ * @param {number} gregorianYear
+ * @returns {number}
+ */
+function gregorianYearToRumi(gregorianYear) {
+  return gregorianYear - 584;
+}
+
+/**
  * calendarType'a göre girilen yılı Miladi yıla çevirir.
  * @param {'miladi'|'hicri'|'rumi'} calendarType
  * @param {number} year
@@ -56,5 +65,6 @@ module.exports = {
   hijriYearToGregorian,
   gregorianYearToHijri,
   rumiYearToGregorian,
+  gregorianYearToRumi,
   convertToGregorianYear,
 };

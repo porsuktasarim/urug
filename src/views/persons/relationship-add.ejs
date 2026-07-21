@@ -14,9 +14,12 @@
       <div class="mb-3">
         <label class="form-label">Bu bağlantıda <%= displayName(anchorPerson) %>...</label>
         <select id="parentSideSelect" class="form-select">
-          <option value="father">Baba tarafı</option>
-          <option value="mother">Anne tarafı</option>
+          <option value="father" <%= anchorPerson.gender !== 'female' ? 'selected' : '' %>>Baba tarafı</option>
+          <option value="mother" <%= anchorPerson.gender === 'female' ? 'selected' : '' %>>Anne tarafı</option>
         </select>
+        <div class="form-text">
+          <%= anchorPerson.gender ? 'Cinsiyetine göre otomatik seçildi, gerekirse değiştirebilirsin.' : 'Cinsiyet bilinmiyor, varsayılan olarak baba tarafı seçili — gerekirse değiştir.' %>
+        </div>
       </div>
 
       <% if (anchorSpouses && anchorSpouses.length > 0) { %>
@@ -25,7 +28,9 @@
           <select id="otherParentSelect" class="form-select">
             <option value="">Sadece <%= displayName(anchorPerson) %> bağlansın</option>
             <% anchorSpouses.forEach(function (sp) { %>
-              <option value="<%= sp._id %>"><%= displayName(sp) %></option>
+              <option value="<%= sp._id %>" data-gender="<%= sp.gender || '' %>" data-family-id="<%= sp.familyGroupId ? sp.familyGroupId._id : '' %>">
+                <%= displayName(sp) %>
+              </option>
             <% }); %>
           </select>
         </div>
@@ -79,7 +84,7 @@
 
       <div class="mb-3">
         <label class="form-label">Aile</label>
-        <select name="familyGroupId" class="form-select">
+        <select name="familyGroupId" id="newPersonFamilyGroupId" class="form-select">
           <option value="">—</option>
           <% familyGroups.forEach(function (fg) { %>
             <option value="<%= fg._id %>" <%= anchorPerson.familyGroupId && String(anchorPerson.familyGroupId._id) === String(fg._id) ? 'selected' : '' %>>
@@ -156,6 +161,38 @@
           newPersonOtherParentIdInput.value = otherParentSelect.value;
         });
       }
+
+      // "Baba tarafının sülalesine otomatik eklensin" — yeni çocuk formunun
+      // aile seçimini, baba olarak belirlenen kişinin (anchor ya da seçili
+      // eş, hangisi erkekse) ailesine otomatik ayarlar. Kullanıcı isterse
+      // yine de elle değiştirebilir.
+      var newPersonFamilySelect = document.getElementById('newPersonFamilyGroupId');
+      var anchorGenderData = '<%= anchorPerson.gender || "" %>';
+      var anchorFamilyIdData = '<%= anchorPerson.familyGroupId ? anchorPerson.familyGroupId._id : "" %>';
+
+      function updateAutoFamily() {
+        if (!newPersonFamilySelect || relType !== 'child') return;
+
+        var fatherFamilyId = null;
+        if (anchorGenderData === 'male' && anchorFamilyIdData) {
+          fatherFamilyId = anchorFamilyIdData;
+        } else if (otherParentSelect && otherParentSelect.value) {
+          var selectedOption = otherParentSelect.options[otherParentSelect.selectedIndex];
+          if (selectedOption && selectedOption.getAttribute('data-gender') === 'male') {
+            var familyId = selectedOption.getAttribute('data-family-id');
+            if (familyId) fatherFamilyId = familyId;
+          }
+        }
+
+        if (fatherFamilyId) {
+          newPersonFamilySelect.value = fatherFamilyId;
+        }
+      }
+
+      if (otherParentSelect) {
+        otherParentSelect.addEventListener('change', updateAutoFamily);
+      }
+      updateAutoFamily(); // sayfa yüklenirken de (anchor erkekse) hemen uygula
 
       // Eş ekleme: iki cinsiyet select'i, hem arama sonucu bağlantı formuna
       // hem yeni-kişi formuna hidden alan olarak senkronize edilir.

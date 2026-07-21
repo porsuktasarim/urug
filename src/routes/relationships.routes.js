@@ -24,7 +24,10 @@ const RELATION_LABELS = {
 async function getSpousesOf(personId) {
   const unions = await Union.find({
     $or: [{ personAId: personId }, { personBId: personId }],
-  }).populate(['personAId', 'personBId']);
+  }).populate([
+    { path: 'personAId', populate: { path: 'familyGroupId' } },
+    { path: 'personBId', populate: { path: 'familyGroupId' } },
+  ]);
 
   return unions.map((u) =>
     String(u.personAId._id) === String(personId) ? u.personBId : u.personAId
@@ -179,15 +182,22 @@ router.post('/:id/iliski-yeni-kisi', async (req, res) => {
 
 /**
  * type'a göre childId/parentId/parentSide'ı doğru sıraya koyup
- * ParentChild kaydı oluşturur. "child" tipinde anchor = ebeveyn,
- * selectedPerson = çocuk (parentSide formdan gelir: hangi taraftan
- * bağlandığı, "father" ya da "mother"); "father"/"mother" tipinde
- * anchor = çocuk, selectedPerson = ebeveyn (parentSide = type).
+ * ParentChild kaydı oluşturur.
+ *
+ * OTOMATİK CİNSİYET DÜZELTMESİ: "father"/"mother" tipinde, bağlanacak
+ * kişinin (parentId) cinsiyeti biliniyorsa ve tıklanan butonla (type)
+ * çelişiyorsa, sistem sessizce doğru tarafa (cinsiyete göre) kaydeder —
+ * ör. "Baba Ekle"ye tıklanıp kadın bir kişi seçilirse, otomatik "anne"
+ * olarak bağlanır. Cinsiyet bilinmiyorsa tıklanan buton (type) esas alınır.
+ *
+ * "child" tipinde: chosenParentSide verilmemişse (veya boşsa), anchor
+ * kişinin KENDİ cinsiyetinden otomatik çıkarılır (kadın->anne, erkek->baba).
+ * İkisi de yoksa (cinsiyet bilinmiyor VE seçim yapılmamış) hata verir.
  *
  * otherParentId: "child" tipinde, anchor'ın aktif eşi seçildiyse
  * (bkz. relationship-add.ejs "Bu çocuğun diğer ebeveyni") o eş de
- * otomatik olarak karşı taraftan (father/mother) bağlanır — tek
- * işlemde her iki ebeveyn de kurulmuş olur.
+ * otomatik olarak karşı taraftan bağlanır — tek işlemde her iki ebeveyn
+ * de kurulmuş olur.
  */
 async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide, otherParentId) {
   if (String(anchorId) === String(otherPersonId)) {
@@ -202,13 +212,33 @@ async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide, 
     childId = anchorId;
     parentId = otherPersonId;
     parentSide = type;
-  } else if (type === 'child') {
-    if (chosenParentSide !== 'father' && chosenParentSide !== 'mother') {
-      throw new Error('Çocuk eklerken anchor kişinin baba mı anne mi olduğunu seçmelisin.');
+
+    const parentPerson = await Person.findById(parentId);
+    if (parentPerson && parentPerson.gender === 'female') {
+      parentSide = 'mother';
+    } else if (parentPerson && parentPerson.gender === 'male') {
+      parentSide = 'father';
     }
+    // Cinsiyet bilinmiyorsa (null) tıklanan buton (type) esas alınır — değişiklik yok.
+  } else if (type === 'child') {
+    let resolvedSide = chosenParentSide;
+
+    if (resolvedSide !== 'father' && resolvedSide !== 'mother') {
+      const anchorPerson = await Person.findById(anchorId);
+      if (anchorPerson && anchorPerson.gender === 'female') {
+        resolvedSide = 'mother';
+      } else if (anchorPerson && anchorPerson.gender === 'male') {
+        resolvedSide = 'father';
+      }
+    }
+
+    if (resolvedSide !== 'father' && resolvedSide !== 'mother') {
+      throw new Error('Çocuk eklerken anchor kişinin baba mı anne mi olduğu belirlenemedi (cinsiyet bilinmiyor) — kişi düzenleme sayfasından cinsiyeti gir ya da elle seç.');
+    }
+
     childId = otherPersonId;
     parentId = anchorId;
-    parentSide = chosenParentSide;
+    parentSide = resolvedSide;
   } else {
     throw new Error('Geçersiz ilişki tipi.');
   }
@@ -227,7 +257,7 @@ async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide, 
 
   // Diğer ebeveyn (aktif eş) de belirtildiyse, karşı taraftan otomatik bağla.
   if (type === 'child' && otherParentId && otherParentId.trim()) {
-    const secondSide = chosenParentSide === 'father' ? 'mother' : 'father';
+    const secondSide = parentSide === 'father' ? 'mother' : 'father';
     const secondExisting = await ParentChild.findOne({ childId: otherPersonId, parentSide: secondSide });
     if (!secondExisting) {
       await ParentChild.create({ childId: otherPersonId, parentId: otherParentId.trim(), parentSide: secondSide });
