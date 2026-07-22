@@ -12,31 +12,56 @@
     <p class="text-muted"><%= t('common.status.empty') %></p>
   <% } else { %>
     <div class="list-group">
-      <% persons.forEach(function (p) { %>
-        <div class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <strong><%= displayName(p) %></strong>
-            <span class="text-muted ms-2">
-              <%= p.familyGroupId ? p.familyGroupId.name : 'Aile bilgisi yok' %>
-            </span>
-            <% if (p.hasNoLastName) { %>
-              <span class="badge bg-secondary ms-1">soyadı yok</span>
-            <% } %>
-            <% var pUrl = personProfileUrl(p); %>
-            <% if (pUrl) { %>
-              <a href="<%= pUrl %>" class="text-muted small ms-2"><%= pUrl %></a>
-            <% } %>
-          </div>
-          <div class="d-flex gap-2">
-            <a href="/kisiler/<%= p._id %>/duzenle" class="btn btn-sm btn-outline-secondary">
-              <%= t('common.actions.edit') %>
-            </a>
-            <form action="/kisiler/<%= p._id %>/sil" method="POST"
-                  onsubmit="return confirm('<%= t('common.confirm.delete') %>');">
-              <button type="submit" class="btn btn-sm btn-outline-danger">
-                <%= t('common.actions.delete') %>
-              </button>
-            </form>
+      <% persons.forEach(function (entry) { %>
+        <% var p = entry.person; %>
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <strong><%= displayName(p) %></strong>
+              <% entry.personalNicknames.forEach(function (nick) { %>
+                <span class="fst-italic text-muted small">"<%= nick %>"</span>
+              <% }); %>
+              <% if (entry.familyLakab) { %>
+                <span class="badge rounded-pill text-bg-light border text-muted"><%= entry.familyLakab.value %></span>
+              <% } %>
+              <% if (p.hasNoLastName) { %>
+                <span class="badge bg-secondary ms-1">soyadı yok</span>
+              <% } %>
+
+              <div class="text-muted small mt-1">
+                <%= p.familyGroupId ? p.familyGroupId.name : 'Aile bilgisi yok' %>
+
+                <% if (p.birthYear || p.deathYear) { %>
+                  ·
+                  <% if (p.birthYear) { %>d. <%= formatHistoricalYear(p.birthYear) %><% } %>
+                  <% if (p.deathYear) { %> — ö. <%= formatHistoricalYear(p.deathYear) %><% } %>
+                <% } %>
+
+                <% if (entry.spouses.length > 0) { %>
+                  · eşi: <%= entry.spouses.map(function (s) { return displayName(s); }).join(', ') %>
+                <% } %>
+
+                <% if (entry.eldestChild) { %>
+                  · en büyük çocuğu: <%= displayName(entry.eldestChild) %>
+                <% } %>
+              </div>
+
+              <% var pUrl = personProfileUrl(p); %>
+              <% if (pUrl) { %>
+                <a href="<%= pUrl %>" class="text-muted small"><%= pUrl %></a>
+              <% } %>
+            </div>
+            <div class="d-flex gap-2 flex-shrink-0">
+              <a href="/kisiler/<%= p._id %>/duzenle" class="btn btn-sm btn-outline-secondary">
+                <%= t('common.actions.edit') %>
+              </a>
+              <form action="/kisiler/<%= p._id %>/sil" method="POST"
+                    onsubmit="return confirm('<%= t('common.confirm.delete') %>');">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <%= t('common.actions.delete') %>
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       <% }); %>

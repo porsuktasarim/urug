@@ -29,6 +29,14 @@ const personSchema = new mongoose.Schema(
       required: [true, 'Ad zorunludur.'],
       trim: true,
     },
+    // Göbek adı — resmi kimlikte ikinci ad olarak yer alır. Bazı kişiler
+    // günlük hayatta ilk adı yerine göbek adıyla anılır, bu yüzden ayrı
+    // bir alan olarak tutuluyor (kişisel lakaptan farklı — bu resmi bir ad).
+    middleName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     officialLastName: {
       type: String,
       trim: true,

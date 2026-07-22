@@ -9,6 +9,7 @@ const { computeEffectiveSurname, computeNameKey, reassignSlugsForNameGroup } = r
 const { computeSearchKey } = require('../utils/personSearch');
 const { parseDateFields } = require('../utils/dateFieldParser');
 const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
+const { formatHistoricalYear } = require('../utils/historicalDateDisplay');
 const { sortByBirthYear, childRelationLabel, getSiblings } = require('../utils/familyRelations');
 const { personProfileUrl } = require('../utils/personLink');
 const { encryptTc, hashTc } = require('../utils/tcCrypto');
@@ -109,7 +110,51 @@ router.get('/', async (req, res) => {
     .collation({ locale: 'tr' })
     .sort({ officialFirstName: 1 });
 
-  res.render('persons/index', { persons, t, displayName, personProfileUrl });
+  const personIds = persons.map((p) => p._id);
+
+  // N+1 sorgudan kaçınmak için eş ve çocuk ilişkilerini TOPLU çekip
+  // kişi başına lookup map'i olarak hazırlıyoruz.
+  const unions = await Union.find({
+    $or: [{ personAId: { $in: personIds } }, { personBId: { $in: personIds } }],
+  }).populate(['personAId', 'personBId']);
+
+  const spousesByPersonId = new Map();
+  unions.forEach((u) => {
+    const aId = String(u.personAId._id);
+    const bId = String(u.personBId._id);
+    if (!spousesByPersonId.has(aId)) spousesByPersonId.set(aId, []);
+    if (!spousesByPersonId.has(bId)) spousesByPersonId.set(bId, []);
+    spousesByPersonId.get(aId).push(u.personBId);
+    spousesByPersonId.get(bId).push(u.personAId);
+  });
+
+  const parentChildLinks = await ParentChild.find({ parentId: { $in: personIds } }).populate('childId');
+  const childrenByParentId = new Map();
+  parentChildLinks.forEach((link) => {
+    const pid = String(link.parentId);
+    if (!childrenByParentId.has(pid)) childrenByParentId.set(pid, []);
+    childrenByParentId.get(pid).push(link.childId);
+  });
+
+  const personsWithExtras = persons.map((p) => {
+    const spouses = spousesByPersonId.get(String(p._id)) || [];
+    const children = sortByBirthYear(childrenByParentId.get(String(p._id)) || []);
+    return {
+      person: p,
+      spouses,
+      eldestChild: children.length > 0 ? children[0] : null,
+      personalNicknames: getPersonalNicknames(p),
+      familyLakab: getFamilyLakab(p),
+    };
+  });
+
+  res.render('persons/index', {
+    persons: personsWithExtras,
+    t,
+    displayName,
+    personProfileUrl,
+    formatHistoricalYear,
+  });
 });
 
 // Arama sayfası — genel amaçlı arama-ve-seç bileşeni.
@@ -212,7 +257,7 @@ function validateBase(body) {
 
 // Yeni kayıt oluşturma
 router.post('/', requireLogin, async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, gender, marriedLastName, useCombinedLastName } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -257,6 +302,7 @@ router.post('/', requireLogin, async (req, res) => {
     const person = new Person({
       familyGroupId: finalFamilyGroupId,
       officialFirstName: finalFirstName,
+      middleName: middleName && middleName.trim() ? middleName.trim() : null,
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
       birthYear: birthDate.year,
@@ -276,6 +322,7 @@ router.post('/', requireLogin, async (req, res) => {
       nameKey: computeNameKey(finalFirstName, effectiveSurname),
       searchKey: computeSearchKey({
         officialFirstName: finalFirstName,
+        middleName: middleName && middleName.trim() ? middleName.trim() : null,
         officialLastName: finalLastName,
         hasNoLastName: hasNoLastName === 'on',
         marriedLastName: finalMarriedLastName,
@@ -379,7 +426,7 @@ router.get('/:id/duzenle', requireLogin, async (req, res) => {
 
 // Güncelleme
 router.post('/:id', requireLogin, async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, gender, marriedLastName, useCombinedLastName } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -431,6 +478,7 @@ router.post('/:id', requireLogin, async (req, res) => {
 
     existing.familyGroupId = finalFamilyGroupId;
     existing.officialFirstName = finalFirstName;
+    existing.middleName = middleName && middleName.trim() ? middleName.trim() : null;
     existing.officialLastName = finalLastName;
     existing.hasNoLastName = hasNoLastName === 'on';
     existing.birthYear = birthDate.year;
@@ -450,6 +498,7 @@ router.post('/:id', requireLogin, async (req, res) => {
     existing.nameKey = newNameKey;
     existing.searchKey = computeSearchKey({
       officialFirstName: finalFirstName,
+      middleName: middleName && middleName.trim() ? middleName.trim() : null,
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
       marriedLastName: finalMarriedLastName,

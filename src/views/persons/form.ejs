@@ -59,6 +59,13 @@
                      value="<%= person ? (person.officialFirstName || '') : '' %>">
             </div>
 
+          <% } else if (field.key === 'middleName') { %>
+            <div class="mb-3">
+              <label class="form-label">Göbek Adı <span class="text-muted small">(opsiyonel)</span></label>
+              <input type="text" name="middleName" class="form-control"
+                     value="<%= person && person.middleName ? person.middleName : '' %>">
+            </div>
+
           <% } else if (field.key === 'officialLastName') { %>
             <div class="mb-3">
               <label class="form-label"><%= t('person.fields.officialLastName') %></label>

@@ -32,6 +32,16 @@ async function ensureSystemAttributes() {
       order: 1,
     },
     {
+      key: 'middleName',
+      label: 'Göbek Adı',
+      type: 'text',
+      isRequired: false,
+      isActive: true,
+      isSystem: true,
+      group: 'Kimlik Bilgileri',
+      order: 1.5,
+    },
+    {
       key: 'officialLastName',
       label: 'Soyadı',
       type: 'text',

@@ -9,6 +9,7 @@
 function computeSearchKey(person) {
   const parts = [
     person.officialFirstName,
+    person.middleName,
     !person.hasNoLastName ? person.officialLastName : null,
     person.marriedLastName,
     ...((person.nicknames || []).map((n) => n.value)),
