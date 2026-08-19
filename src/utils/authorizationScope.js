@@ -4,12 +4,8 @@ const ParentChild = require('../models/ParentChild');
 
 /**
  * Bir kişinin TÜM altsoyunun (çocuk, torun, ...) id'lerini bulur —
- * kendisi dahil. "member" rolündeki kullanıcıların düzenleme kapsamını
- * ("kendisi ve altsoyu") hesaplamak için kullanılır.
- *
- * $graphLookup yerine iteratif BFS kullanılıyor çünkü ParentChild ayrı
- * bir koleksiyon (Person içinde gömülü değil) — Mongoose'ta bunu basit
- * ve okunabilir tutmak için düz JS döngüsü tercih edildi.
+ * kendisi dahil. "personSubtree" kapsamlı rollerin ("Üye" gibi) düzenleme
+ * alanını ("kendisi ve altsoyu") hesaplamak için kullanılır.
  */
 async function getDescendantIdsIncludingSelf(rootPersonId) {
   const result = new Set([String(rootPersonId)]);
@@ -34,43 +30,56 @@ async function getDescendantIdsIncludingSelf(rootPersonId) {
 }
 
 /**
- * Bir kullanıcının belirli bir kişiyi düzenleme yetkisi olup olmadığını
- * kontrol eder.
- *
- * Kurallar:
- * - globalAdmin: her zaman true.
- * - familyAdmin: personId'nin familyGroupId'si, membership'teki
- *   familyGroupId ile eşleşiyorsa true.
- * - member: personId, membership'teki scopePersonId'nin kendisi ya da
- *   altsoyundan biriyse true.
- * - Hiçbir membership uyuşmuyorsa false.
+ * Bir kullanıcının tüm Membership kayıtlarını, ilgili Role'leri populate
+ * ederek döner. roleId'si boş olanlar (henüz migrate edilmemiş/bozuk
+ * kayıtlar) güvenlik gereği yok sayılır.
+ */
+async function getPopulatedMemberships(userId) {
+  const memberships = await Membership.find({ userId }).populate('roleId');
+  return memberships.filter((m) => m.roleId); // roleId'si olmayan (geçersiz) kayıtları ele
+}
+
+/**
+ * Kişi bazlı bir izin kontrolü (canEditPeople, canDeletePeople,
+ * canManageRelationships gibi) — kullanıcının rollerinden HERHANGİ biri,
+ * ilgili izne VE kapsam koşuluna (scopeType'a göre) uyuyorsa true döner.
  *
  * @param {string} userId
  * @param {string} personId
- * @returns {Promise<boolean>}
+ * @param {'canCreatePeople'|'canEditPeople'|'canDeletePeople'|'canManageRelationships'|'canEditFamily'|'canViewTc'} permissionKey
  */
-async function canEditPerson(userId, personId) {
+async function hasPersonPermission(userId, personId, permissionKey) {
   if (!userId || !personId) return false;
 
-  const memberships = await Membership.find({ userId });
+  const memberships = await getPopulatedMemberships(userId);
   if (memberships.length === 0) return false;
 
-  if (memberships.some((m) => m.role === 'globalAdmin')) return true;
+  // Global kapsamlı ve izni olan bir rol varsa kapsam kontrolüne hiç gerek yok.
+  const hasGlobalPermission = memberships.some(
+    (m) => m.roleId.scopeType === 'global' && m.roleId.permissions[permissionKey]
+  );
+  if (hasGlobalPermission) return true;
 
   const person = await Person.findById(personId);
   if (!person) return false;
 
-  const familyAdminMemberships = memberships.filter((m) => m.role === 'familyAdmin');
+  // family kapsamlı roller
+  const familyScoped = memberships.filter(
+    (m) => m.roleId.scopeType === 'family' && m.roleId.permissions[permissionKey]
+  );
   if (
-    familyAdminMemberships.length > 0 &&
+    familyScoped.length > 0 &&
     person.familyGroupId &&
-    familyAdminMemberships.some((m) => String(m.familyGroupId) === String(person.familyGroupId))
+    familyScoped.some((m) => String(m.familyGroupId) === String(person.familyGroupId))
   ) {
     return true;
   }
 
-  const memberMemberships = memberships.filter((m) => m.role === 'member' && m.scopePersonId);
-  for (const m of memberMemberships) {
+  // personSubtree kapsamlı roller
+  const subtreeScoped = memberships.filter(
+    (m) => m.roleId.scopeType === 'personSubtree' && m.roleId.permissions[permissionKey] && m.scopePersonId
+  );
+  for (const m of subtreeScoped) {
     const scopeIds = await getDescendantIdsIncludingSelf(m.scopePersonId);
     if (scopeIds.has(String(personId))) return true;
   }
@@ -79,17 +88,89 @@ async function canEditPerson(userId, personId) {
 }
 
 /**
+ * Bir kişiyi düzenleme yetkisi var mı (canEditPeople izni + kapsam).
+ */
+async function canEditPerson(userId, personId) {
+  return hasPersonPermission(userId, personId, 'canEditPeople');
+}
+
+/**
+ * Bir kişiyi silme yetkisi var mı (canDeletePeople izni + kapsam).
+ */
+async function canDeletePerson(userId, personId) {
+  return hasPersonPermission(userId, personId, 'canDeletePeople');
+}
+
+/**
+ * Bir kişinin akrabalık bağlarını (ebeveyn/eş/çocuk) yönetme yetkisi var mı.
+ */
+async function canManageRelationshipsFor(userId, personId) {
+  return hasPersonPermission(userId, personId, 'canManageRelationships');
+}
+
+/**
  * Bir kullanıcının YENİ, bağımsız bir kişi oluşturma yetkisi olup
- * olmadığını kontrol eder (ör. /kisiler/new formu — bir "anchor" kişiye
- * bağlı olmayan, en baştan bir kayıt). Bu, globalAdmin ve familyAdmin'e
- * açık; "member" rolü sadece kendi altsoyunu YÖNETEBİLİR, sıfırdan
- * bağımsız kişi oluşturamaz (o akış her zaman bir ilişki üzerinden,
- * dolayısıyla canEditPerson üzerinden kontrol edilir).
+ * olmadığını kontrol eder (ör. /kisiler/new formu). scopeType='global'
+ * ya da 'family' olan ve canCreatePeople izni olan herhangi bir rolü
+ * varsa yeterli — "personSubtree" (Üye) rolü bağımsız oluşturamaz,
+ * sadece akrabalık akışı üzerinden (canManageRelationshipsFor) ekleyebilir.
  */
 async function canCreateStandalonePerson(userId) {
   if (!userId) return false;
-  const memberships = await Membership.find({ userId });
-  return memberships.some((m) => m.role === 'globalAdmin' || m.role === 'familyAdmin');
+  const memberships = await getPopulatedMemberships(userId);
+
+  return memberships.some(
+    (m) =>
+      (m.roleId.scopeType === 'global' || m.roleId.scopeType === 'family') &&
+      m.roleId.permissions.canCreatePeople
+  );
 }
 
-module.exports = { canEditPerson, canCreateStandalonePerson, getDescendantIdsIncludingSelf };
+/**
+ * Bir kullanıcının belirli bir aileyi düzenleme yetkisi var mı
+ * (canEditFamily izni + kapsam: global her zaman, family ise sadece o
+ * spesifik aile için).
+ */
+async function canEditFamilyGroup(userId, familyGroupId) {
+  if (!userId || !familyGroupId) return false;
+
+  const memberships = await getPopulatedMemberships(userId);
+  if (memberships.length === 0) return false;
+
+  const hasGlobalPermission = memberships.some(
+    (m) => m.roleId.scopeType === 'global' && m.roleId.permissions.canEditFamily
+  );
+  if (hasGlobalPermission) return true;
+
+  return memberships.some(
+    (m) =>
+      m.roleId.scopeType === 'family' &&
+      m.roleId.permissions.canEditFamily &&
+      String(m.familyGroupId) === String(familyGroupId)
+  );
+}
+
+/**
+ * Yeni bir aile OLUŞTURMA yetkisi var mı — sadece global kapsamlı ve
+ * canEditFamily izni olan roller (ör. Süper Admin). Aile admini kendi
+ * ailesini düzenleyebilir ama yeni, ilgisiz bir aile oluşturamaz.
+ */
+async function canCreateFamilyGroup(userId) {
+  if (!userId) return false;
+  const memberships = await getPopulatedMemberships(userId);
+
+  return memberships.some(
+    (m) => m.roleId.scopeType === 'global' && m.roleId.permissions.canEditFamily
+  );
+}
+
+module.exports = {
+  canEditPerson,
+  canDeletePerson,
+  canManageRelationshipsFor,
+  canCreateStandalonePerson,
+  canEditFamilyGroup,
+  canCreateFamilyGroup,
+  getDescendantIdsIncludingSelf,
+  hasPersonPermission,
+};

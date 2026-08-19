@@ -2,7 +2,7 @@ const express = require('express');
 const User = require('../models/User');
 const Membership = require('../models/Membership');
 const FamilyGroup = require('../models/FamilyGroup');
-const Person = require('../models/Person');
+const Role = require('../models/Role');
 const { requireGlobalAdmin } = require('../middleware/auth');
 const { displayName } = require('../utils/displayName');
 const { t } = require('../lang');
@@ -13,16 +13,17 @@ const router = express.Router();
 // yönetimi tamamen sistem geneli bir ayar.
 router.use(requireGlobalAdmin);
 
-const ROLE_LABELS = {
-  globalAdmin: 'Global Admin',
-  familyAdmin: 'Aile Admini',
-  member: 'Üye',
-};
+async function getRolesSorted() {
+  return Role.find().sort({ isSystemRole: -1, name: 1 });
+}
 
 // Liste — her kullanıcının rolü (varsa) ile birlikte
 router.get('/', async (req, res) => {
   const users = await User.find().sort({ username: 1 });
-  const memberships = await Membership.find().populate('familyGroupId').populate('scopePersonId');
+  const memberships = await Membership.find()
+    .populate('roleId')
+    .populate('familyGroupId')
+    .populate('scopePersonId');
 
   const membershipByUserId = new Map();
   memberships.forEach((m) => membershipByUserId.set(String(m.userId), m));
@@ -32,34 +33,36 @@ router.get('/', async (req, res) => {
     membership: membershipByUserId.get(String(u._id)) || null,
   }));
 
-  res.render('admin/users/index', { t, usersWithRole, roleLabels: ROLE_LABELS, displayName });
+  res.render('admin/users/index', { t, usersWithRole, displayName });
 });
 
 router.get('/new', async (req, res) => {
   const familyGroups = await FamilyGroup.find().collation({ locale: 'tr' }).sort({ name: 1 });
+  const roles = await getRolesSorted();
 
   res.render('admin/users/form', {
     t,
     targetUser: null,
     membership: null,
     familyGroups,
-    roleLabels: ROLE_LABELS,
+    roles,
     scopePersonName: '',
     errorMessage: null,
   });
 });
 
 router.post('/', async (req, res) => {
-  const { username, password, role, familyGroupId, scopePersonId } = req.body;
+  const { username, password, roleId, familyGroupId, scopePersonId } = req.body;
 
   async function rerenderWithError(message) {
     const familyGroups = await FamilyGroup.find().collation({ locale: 'tr' }).sort({ name: 1 });
+    const roles = await getRolesSorted();
     return res.status(400).render('admin/users/form', {
       t,
       targetUser: { username },
-      membership: { role, familyGroupId, scopePersonId },
+      membership: { roleId, familyGroupId, scopePersonId },
       familyGroups,
-      roleLabels: ROLE_LABELS,
+      roles,
       scopePersonName: '',
       errorMessage: message,
     });
@@ -71,14 +74,16 @@ router.post('/', async (req, res) => {
   if (password.length < 8) {
     return rerenderWithError('Şifre en az 8 karakter olmalıdır.');
   }
-  if (!ROLE_LABELS[role]) {
+
+  const selectedRole = roleId ? await Role.findById(roleId) : null;
+  if (!selectedRole) {
     return rerenderWithError('Geçersiz rol.');
   }
-  if (role === 'familyAdmin' && !familyGroupId) {
-    return rerenderWithError('Aile admini için bir aile seçilmelidir.');
+  if (selectedRole.scopeType === 'family' && !familyGroupId) {
+    return rerenderWithError('Bu rol için bir aile seçilmelidir.');
   }
-  if (role === 'member' && !scopePersonId) {
-    return rerenderWithError('Üye için bir kişi (kapsam) seçilmelidir.');
+  if (selectedRole.scopeType === 'personSubtree' && !scopePersonId) {
+    return rerenderWithError('Bu rol için bir kişi (kapsam) seçilmelidir.');
   }
 
   try {
@@ -87,9 +92,9 @@ router.post('/', async (req, res) => {
 
     await Membership.create({
       userId: newUser._id,
-      role,
-      familyGroupId: role === 'familyAdmin' ? familyGroupId : null,
-      scopePersonId: role === 'member' ? scopePersonId : null,
+      roleId: selectedRole._id,
+      familyGroupId: selectedRole.scopeType === 'family' ? familyGroupId : null,
+      scopePersonId: selectedRole.scopeType === 'personSubtree' ? scopePersonId : null,
     });
 
     res.redirect('/admin/kullanicilar');
@@ -105,22 +110,25 @@ router.get('/:id/duzenle', async (req, res) => {
     return res.status(404).send('Kullanıcı bulunamadı.');
   }
 
-  const membership = await Membership.findOne({ userId: targetUser._id }).populate('scopePersonId');
+  const membership = await Membership.findOne({ userId: targetUser._id })
+    .populate('roleId')
+    .populate('scopePersonId');
   const familyGroups = await FamilyGroup.find().collation({ locale: 'tr' }).sort({ name: 1 });
+  const roles = await getRolesSorted();
 
   res.render('admin/users/form', {
     t,
     targetUser,
     membership,
     familyGroups,
-    roleLabels: ROLE_LABELS,
+    roles,
     scopePersonName: membership && membership.scopePersonId ? displayName(membership.scopePersonId) : '',
     errorMessage: null,
   });
 });
 
 router.post('/:id', async (req, res) => {
-  const { role, familyGroupId, scopePersonId } = req.body;
+  const { roleId, familyGroupId, scopePersonId } = req.body;
 
   const targetUser = await User.findById(req.params.id);
   if (!targetUser) {
@@ -129,33 +137,35 @@ router.post('/:id', async (req, res) => {
 
   async function rerenderWithError(message) {
     const familyGroups = await FamilyGroup.find().collation({ locale: 'tr' }).sort({ name: 1 });
+    const roles = await getRolesSorted();
     return res.status(400).render('admin/users/form', {
       t,
       targetUser,
-      membership: { role, familyGroupId, scopePersonId },
+      membership: { roleId, familyGroupId, scopePersonId },
       familyGroups,
-      roleLabels: ROLE_LABELS,
+      roles,
       scopePersonName: '',
       errorMessage: message,
     });
   }
 
-  if (!ROLE_LABELS[role]) {
+  const selectedRole = roleId ? await Role.findById(roleId) : null;
+  if (!selectedRole) {
     return rerenderWithError('Geçersiz rol.');
   }
-  if (role === 'familyAdmin' && !familyGroupId) {
-    return rerenderWithError('Aile admini için bir aile seçilmelidir.');
+  if (selectedRole.scopeType === 'family' && !familyGroupId) {
+    return rerenderWithError('Bu rol için bir aile seçilmelidir.');
   }
-  if (role === 'member' && !scopePersonId) {
-    return rerenderWithError('Üye için bir kişi (kapsam) seçilmelidir.');
+  if (selectedRole.scopeType === 'personSubtree' && !scopePersonId) {
+    return rerenderWithError('Bu rol için bir kişi (kapsam) seçilmelidir.');
   }
 
   await Membership.findOneAndDelete({ userId: targetUser._id });
   await Membership.create({
     userId: targetUser._id,
-    role,
-    familyGroupId: role === 'familyAdmin' ? familyGroupId : null,
-    scopePersonId: role === 'member' ? scopePersonId : null,
+    roleId: selectedRole._id,
+    familyGroupId: selectedRole.scopeType === 'family' ? familyGroupId : null,
+    scopePersonId: selectedRole.scopeType === 'personSubtree' ? scopePersonId : null,
   });
 
   res.redirect('/admin/kullanicilar');

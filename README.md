@@ -2,19 +2,18 @@
 
 Self-hosted aile şeceresi uygulaması.
 
-## Durum (urug039 itibarıyla)
+## Durum (urug041 itibarıyla)
 
-**Yetki Modeli artık ince taneli:**
-- **globalAdmin**: her şeyi düzenler (kişi özellikleri, aileler, kullanıcılar dahil)
-- **familyAdmin**: sadece kendisine atanmış ailedeki kişileri düzenleyebilir
-- **member**: sadece kendisine atanmış kişiyi VE onun tüm altsoyunu (çocuk, torun...) düzenleyebilir
-- Yeni bağımsız kişi oluşturma (`/kisiler/new`) sadece globalAdmin + familyAdmin'e açık — üyeler akrabalık bağı üzerinden (Baba/Anne/Eş/Çocuk Ekle akışı) yeni kişi ekleyebilir, bu da o an düzenleme yetkisi olan "anchor" kişiye bağlı
-- **Aile yönetimi (`/aileler`) artık sadece globalAdmin'e açık** (önceden herhangi bir giriş yapmış kullanıcı yönetebiliyordu) — Kişi Özellikleri'yle tutarlı hale getirildi
-- **Yeni: Kullanıcı Yönetimi ekranı** (`/admin/kullanicilar`, globalAdmin) — kullanıcı oluşturma + rol/kapsam atama artık mümkün, ilk admin dışında kullanıcı ekleme yolu açıldı
+**Yetki Modeli artık GERÇEKTEN düzenlenebilir (Role koleksiyonu):**
+- Roller artık sabit 3 seçenek değil, `Role` koleksiyonunda tutulan, admin panelinden düzenlenebilir/yeni eklenebilir kayıtlar (`/admin/roller`)
+- Her rolün bir **kapsam tipi** (`global` / `family` / `personSubtree` — mekanizma sabit, çünkü her biri farklı sorgu mantığı gerektiriyor) ve açılıp kapanabilen **izinleri** var: yeni kişi oluşturma, kişi düzenleme, kişi silme, akrabalık bağı yönetme, aile düzenleme, TC görme
+- 3 sistem rolü (**Süper Admin**/global, **Aile Admini**/family, **Üye**/personSubtree) önceden tanımlı geliyor — adları/kapsam tipleri kilitli ama **izinleri düzenlenebiliyor**. İstenirse tamamen yeni bir rol de eklenebiliyor (ör. "sadece görsel ekleyebilen" bir rol)
+- `Membership` artık sabit `role` string'i yerine `roleId` (Role referansı) kullanıyor — eski kayıtlar uygulama açılışında otomatik migrate ediliyor
+- Kullanıcı ekleme/düzenleme ekranı artık rolleri **dinamik olarak** `Role` koleksiyonundan çekiyor, yeni bir rol eklersen otomatik seçeneklerde çıkıyor
 
-**Diğer tamamlanan işler (özet):** Temel altyapı, FamilyGroup (ad/slug/renk), AttributeDefinition (sıralanabilir çekirdek+özel alanlar), Person (göbek adı, doğum/ölüm tarihi + Hicri/Rumi/Miladi, TC şifreleme, aile opsiyonel, doğum/mezar yeri), slug+arama, ParentChild/Union ilişkileri (otomatik cinsiyet/sülale ataması), Kişi Kartı (QR kod, mini kartlar), **D3 ağaç render** (nesil derinliği seçilebilir, tıklayınca büyüyen kart), genel görsel tema (turuncu/adaçayı/krem/antrasit paleti).
+**Diğer tamamlanan işler (özet):** Temel altyapı, FamilyGroup (ad/slug/renk), AttributeDefinition (sıralanabilir çekirdek+özel alanlar), Person (göbek adı, doğum/ölüm tarihi + Hicri/Rumi/Miladi, TC şifreleme, aile opsiyonel, doğum/mezar yeri), slug+arama, ParentChild/Union ilişkileri (otomatik cinsiyet/sülale ataması), Kişi Kartı (QR kod, mini kartlar), D3 ağaç render (nesil derinliği seçilebilir, tıklayınca büyüyen kart), genel görsel tema (turuncu/adaçayı/krem/antrasit paleti).
 
-**Ayarlar sayfası (`/ayarlar`, globalAdmin):** Kişi Özellikleri, Kullanıcılar ve Aileler yönetimi artık tek bir "Ayarlar" sayfası altında toplandı — üst menüde ayrı ayrı görünmüyorlar, sadece bir dişli (gear) ikonuyla erişiliyor. Hesap göstergesi (kullanıcı adı) de artık kişi ikonu + açılır menü (dropdown), Giriş/Çıkış da simge. Renk paleti: `#ff7f11` (turuncu, vurgu) / `#acbfa4` (adaçayı yeşili, ikincil) / `#e2e8ce` (krem, zemin) / `#262626` (antrasit, metin/navbar) — bkz. `src/public/css/theme.css`.
+**Ayarlar sayfası (`/ayarlar`, globalAdmin):** Kişi Özellikleri, Kullanıcılar, Roller ve Aileler yönetimi tek bir "Ayarlar" sayfası altında — üst menüde sadece bir dişli (gear) ikonuyla erişiliyor. Hesap göstergesi kişi ikonu + açılır menü (dropdown), Giriş/Çıkış da simge. Renk paleti: `#ff7f11` (turuncu, vurgu) / `#acbfa4` (adaçayı yeşili, ikincil) / `#e2e8ce` (krem, zemin) / `#262626` (antrasit, metin/navbar) — bkz. `src/public/css/theme.css`.
 
 **Sırada / bekleyen:**
 - Aile hikaye/açıklama alanı + foto galerisi

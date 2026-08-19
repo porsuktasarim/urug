@@ -9,6 +9,11 @@
       <div class="alert alert-danger"><%= errorMessage %></div>
     <% } %>
 
+    <% var selectedRoleId = membership && membership.roleId
+         ? (membership.roleId._id ? String(membership.roleId._id) : String(membership.roleId))
+         : ''; %>
+    <% var selectedRoleObj = roles.find(function (r) { return String(r._id) === selectedRoleId; }); %>
+
     <form method="POST"
           action="<%= targetUser && targetUser._id ? '/admin/kullanicilar/' + targetUser._id : '/admin/kullanicilar' %>">
 
@@ -26,20 +31,22 @@
 
       <div class="mb-3">
         <label class="form-label">Rol</label>
-        <select name="role" id="roleSelect" class="form-select">
-          <% Object.keys(roleLabels).forEach(function (roleKey) { %>
-            <option value="<%= roleKey %>" <%= membership && membership.role === roleKey ? 'selected' : '' %>>
-              <%= roleLabels[roleKey] %>
+        <select name="roleId" id="roleSelect" class="form-select">
+          <option value="">—</option>
+          <% roles.forEach(function (r) { %>
+            <option value="<%= r._id %>" data-scope-type="<%= r.scopeType %>"
+                    <%= selectedRoleId === String(r._id) ? 'selected' : '' %>>
+              <%= r.name %>
             </option>
           <% }); %>
         </select>
         <div class="form-text">
-          <strong>Global Admin:</strong> her şeyi düzenler. <strong>Aile Admini:</strong> sadece seçtiğin ailedeki kişileri düzenler. <strong>Üye:</strong> sadece seçtiğin kişiyi ve onun altsoyunu düzenler.
+          Roller ve izinleri <a href="/admin/roller">Roller</a> sayfasından yönetilir/düzenlenir.
         </div>
       </div>
 
       <div class="mb-3" id="familyGroupWrap">
-        <label class="form-label">Aile <span class="text-muted small">(sadece Aile Admini için)</span></label>
+        <label class="form-label">Aile <span class="text-muted small">(aile kapsamlı roller için)</span></label>
         <select name="familyGroupId" class="form-select">
           <option value="">—</option>
           <% familyGroups.forEach(function (fg) { %>
@@ -51,7 +58,7 @@
       </div>
 
       <div class="mb-4" id="scopePersonWrap">
-        <label class="form-label">Kapsam Kişisi <span class="text-muted small">(sadece Üye için — kendisi ve altsoyu düzenlenebilir olur)</span></label>
+        <label class="form-label">Kapsam Kişisi <span class="text-muted small">(kişi+altsoyu kapsamlı roller için)</span></label>
         <input type="text" id="scopePersonSearch" class="form-control" placeholder="Ad-soyad yazıp aramaya başla" autocomplete="off"
                value="<%= scopePersonName %>">
         <input type="hidden" name="scopePersonId" id="scopePersonId"
@@ -73,8 +80,10 @@
       var scopePersonWrap = document.getElementById('scopePersonWrap');
 
       function updateVisibility() {
-        familyGroupWrap.style.display = roleSelect.value === 'familyAdmin' ? 'block' : 'none';
-        scopePersonWrap.style.display = roleSelect.value === 'member' ? 'block' : 'none';
+        var selectedOption = roleSelect.options[roleSelect.selectedIndex];
+        var scopeType = selectedOption ? selectedOption.getAttribute('data-scope-type') : '';
+        familyGroupWrap.style.display = scopeType === 'family' ? 'block' : 'none';
+        scopePersonWrap.style.display = scopeType === 'personSubtree' ? 'block' : 'none';
       }
       roleSelect.addEventListener('change', updateVisibility);
       updateVisibility();

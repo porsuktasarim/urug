@@ -16,7 +16,7 @@ const { encryptTc, hashTc } = require('../utils/tcCrypto');
 const { t } = require('../lang');
 const { displayName, displayNameHtml } = require('../utils/displayName');
 const { requireLogin } = require('../middleware/auth');
-const { requirePersonEditAccess, requireStandaloneCreateAccess } = require('../middleware/personAuthorization');
+const { requirePersonEditAccess, requirePersonDeleteAccess, requireStandaloneCreateAccess } = require('../middleware/personAuthorization');
 
 const router = express.Router();
 
@@ -540,7 +540,7 @@ router.post('/:id', requireLogin, requirePersonEditAccess('id'), async (req, res
 });
 
 // Silme
-router.post('/:id/sil', requireLogin, requirePersonEditAccess('id'), async (req, res) => {
+router.post('/:id/sil', requireLogin, requirePersonDeleteAccess('id'), async (req, res) => {
   const person = await Person.findById(req.params.id);
   if (!person) {
     return res.redirect('/kisiler');

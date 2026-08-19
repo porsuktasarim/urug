@@ -6,8 +6,10 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const { connectDB } = require('./config/db');
 const { ensureSystemAttributes } = require('./config/seedSystemAttributes');
+const { ensureSystemRoles } = require('./config/seedRoles');
 const { migratePersonSearchAndSlugKeys } = require('./config/migratePersonKeys');
 const { migrateFamilyColors } = require('./config/migrateFamilyColors');
+const { migrateMembershipRoles } = require('./config/migrateMembershipRoles');
 const { t } = require('./lang');
 const familyGroupsRouter = require('./routes/familyGroups.routes');
 const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
@@ -17,6 +19,7 @@ const personProfileRouter = require('./routes/personProfile.routes');
 const authRouter = require('./routes/auth.routes');
 const userManagementRouter = require('./routes/userManagement.routes');
 const settingsRouter = require('./routes/settings.routes');
+const rolesRouter = require('./routes/roles.routes');
 const treeViewRouter = require('./routes/treeView.routes');
 
 const app = express();
@@ -64,6 +67,7 @@ app.use('/aileler', familyGroupsRouter);
 app.use('/admin/ozellikler', attributeDefinitionsRouter);
 app.use('/admin/kullanicilar', userManagementRouter);
 app.use('/ayarlar', settingsRouter);
+app.use('/admin/roller', rolesRouter);
 app.use('/kisiler', personsRouter);
 app.use('/kisiler', relationshipsRouter);
 app.use('/kisiler', treeViewRouter);
@@ -80,8 +84,10 @@ async function start() {
     console.log(t('system.dbConnected'));
 
     await ensureSystemAttributes();
+    await ensureSystemRoles();
     await migratePersonSearchAndSlugKeys();
     await migrateFamilyColors();
+    await migrateMembershipRoles(); // Role'ler oluşturulduktan SONRA çalışmalı
 
     app.listen(PORT, () => {
       console.log(t('system.serverStarted', { port: PORT }));

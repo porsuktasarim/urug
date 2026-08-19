@@ -1,17 +1,14 @@
 const mongoose = require('mongoose');
 
 /**
- * Membership — kullanıcının hangi rolde olduğunu tanımlar (bkz. proje
- * dokümanı 3.7 ve 4.8).
+ * Membership — kullanıcının hangi ROLE'e (bkz. models/Role.js) ve hangi
+ * kapsama (familyGroupId ya da scopePersonId, rolün scopeType'ına göre)
+ * sahip olduğunu tanımlar.
  *
- * - globalAdmin: familyGroupId/scopePersonId gerekmez, her şeyi yönetir.
- * - familyAdmin: familyGroupId zorunlu, o ailenin kök ağacındaki her kişiyi düzenleyebilir.
- * - member: scopePersonId zorunlu, kendisi ve o kişinin altsoyunu düzenleyebilir.
- *
- * NOT: Bu adımda sadece "giriş yapmış mı" kontrolü zorlanıyor — rol bazlı
- * ince taneli erişim (familyAdmin/member kapsamı) bir sonraki küçük adımda
- * middleware olarak eklenecek. Şu an her giriş yapmış kullanıcı her şeyi
- * düzenleyebiliyor (globalAdmin gibi davranıyor).
+ * NOT (geriye dönük uyumluluk): `role` alanı eski sabit-enum tasarımdan
+ * kalma, artık kullanılmıyor ama eski kayıtları migrate edebilmek için
+ * (bkz. config/migrateMembershipRoles.js) şemada tutuluyor. Yeni kodun
+ * TAMAMI roleId + populate edilmiş Role üzerinden çalışmalı.
  */
 const membershipSchema = new mongoose.Schema(
   {
@@ -20,10 +17,16 @@ const membershipSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    roleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Role',
+      default: null, // migration tamamlanana kadar geçici olarak boş olabilir
+    },
+    // ESKİ ALAN — sadece migration kaynağı, yeni kodda okunmamalı.
     role: {
       type: String,
       enum: ['globalAdmin', 'familyAdmin', 'member'],
-      required: true,
+      default: null,
     },
     familyGroupId: {
       type: mongoose.Schema.Types.ObjectId,

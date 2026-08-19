@@ -13,12 +13,12 @@
         <div class="list-group-item d-flex justify-content-between align-items-center">
           <div>
             <strong><%= entry.user.username %></strong>
-            <% if (entry.membership) { %>
-              <span class="badge bg-secondary ms-2"><%= roleLabels[entry.membership.role] %></span>
-              <% if (entry.membership.role === 'familyAdmin' && entry.membership.familyGroupId) { %>
+            <% if (entry.membership && entry.membership.roleId) { %>
+              <span class="badge bg-secondary ms-2"><%= entry.membership.roleId.name %></span>
+              <% if (entry.membership.roleId.scopeType === 'family' && entry.membership.familyGroupId) { %>
                 <span class="text-muted small ms-1">— <%= entry.membership.familyGroupId.name %></span>
               <% } %>
-              <% if (entry.membership.role === 'member' && entry.membership.scopePersonId) { %>
+              <% if (entry.membership.roleId.scopeType === 'personSubtree' && entry.membership.scopePersonId) { %>
                 <span class="text-muted small ms-1">— <%= displayName(entry.membership.scopePersonId) %> ve altsoyu</span>
               <% } %>
             <% } else { %>
@@ -41,6 +41,6 @@
     </div>
   <% } %>
 
-  <a href="/" class="d-inline-block mt-3">&larr; Ana Sayfa</a>
+  <a href="/ayarlar" class="d-inline-block mt-3">&larr; Ayarlar</a>
 
 <%- include('../../partials/footer', { t }) %>

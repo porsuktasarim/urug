@@ -1,0 +1,56 @@
+<%- include('../../partials/header', { title: 'Roller', t }) %>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Roller</h1>
+    <a href="/admin/roller/new" class="btn btn-primary">Yeni Rol</a>
+  </div>
+
+  <p class="text-muted small">
+    Her rolün bir "kapsam tipi" (global/aile/kişi+altsoyu) ve açıp kapayabileceğin izinleri var.
+    Sistem rolleri (Süper Admin, Aile Admini, Üye) silinemez ama izinleri düzenlenebilir.
+  </p>
+
+  <% if (roles.length === 0) { %>
+    <p class="text-muted">Kayıt bulunamadı.</p>
+  <% } else { %>
+    <div class="list-group">
+      <% roles.forEach(function (role) { %>
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong><%= role.name %></strong>
+            <% if (role.isSystemRole) { %>
+              <span class="badge bg-secondary ms-2">sistem</span>
+            <% } %>
+            <div class="text-muted small"><%= scopeTypeLabels[role.scopeType] %></div>
+            <div class="text-muted small">
+              <% Object.keys(permissionLabels).forEach(function (key) { %>
+                <% if (role.permissions[key]) { %>
+                  <span class="badge bg-light text-dark border me-1"><%= permissionLabels[key] %></span>
+                <% } %>
+              <% }); %>
+              <% if (!Object.keys(permissionLabels).some(function (k) { return role.permissions[k]; })) { %>
+                <span class="text-muted">hiç izin yok</span>
+              <% } %>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="/admin/roller/<%= role._id %>/duzenle" class="btn btn-sm btn-outline-secondary">
+              <%= t('common.actions.edit') %>
+            </a>
+            <% if (!role.isSystemRole) { %>
+              <form action="/admin/roller/<%= role._id %>/sil" method="POST"
+                    onsubmit="return confirm('<%= t('common.confirm.delete') %>');">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <%= t('common.actions.delete') %>
+                </button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <a href="/ayarlar" class="d-inline-block mt-3">&larr; Ayarlar</a>
+
+<%- include('../../partials/footer', { t }) %>

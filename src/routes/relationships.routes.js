@@ -8,7 +8,7 @@ const { computeSearchKey } = require('../utils/personSearch');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
 const { requireLogin } = require('../middleware/auth');
-const { requirePersonEditAccess } = require('../middleware/personAuthorization');
+const { requireRelationshipManageAccess } = require('../middleware/personAuthorization');
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ const router = express.Router();
 // düzenlemek demektir. Path pattern'li router.use() kullanılıyor çünkü
 // path'siz router.use() req.params.id'yi henüz doldurmaz.
 router.use(requireLogin);
-router.use('/:id', requirePersonEditAccess('id'));
+router.use('/:id', requireRelationshipManageAccess('id'));
 
 const RELATION_LABELS = {
   father: 'Baba',

@@ -3,7 +3,8 @@ const FamilyGroup = require('../models/FamilyGroup');
 const { slugify } = require('../utils/slugify');
 const { randomAestheticHexColor } = require('../utils/familyColor');
 const { t } = require('../lang');
-const { requireGlobalAdmin } = require('../middleware/auth');
+const { requireLogin } = require('../middleware/auth');
+const { requireFamilyEditAccess, requireFamilyCreateAccess } = require('../middleware/personAuthorization');
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.get('/', async (req, res) => {
 });
 
 // Yeni ekleme formu
-router.get('/new', requireGlobalAdmin, (req, res) => {
+router.get('/new', requireLogin, requireFamilyCreateAccess, (req, res) => {
   res.render('family-groups/form', {
     t,
     familyGroup: null,
@@ -29,7 +30,7 @@ router.get('/new', requireGlobalAdmin, (req, res) => {
 });
 
 // Yeni kayıt oluşturma
-router.post('/', requireGlobalAdmin, async (req, res) => {
+router.post('/', requireLogin, requireFamilyCreateAccess, async (req, res) => {
   const { name, slug, colorCode } = req.body;
 
   try {
@@ -59,7 +60,7 @@ router.post('/', requireGlobalAdmin, async (req, res) => {
 });
 
 // Düzenleme formu
-router.get('/:id/duzenle', requireGlobalAdmin, async (req, res) => {
+router.get('/:id/duzenle', requireLogin, requireFamilyEditAccess('id'), async (req, res) => {
   const familyGroup = await FamilyGroup.findById(req.params.id);
 
   if (!familyGroup) {
@@ -75,7 +76,7 @@ router.get('/:id/duzenle', requireGlobalAdmin, async (req, res) => {
 });
 
 // Güncelleme
-router.post('/:id', requireGlobalAdmin, async (req, res) => {
+router.post('/:id', requireLogin, requireFamilyEditAccess('id'), async (req, res) => {
   const { name, slug, colorCode } = req.body;
 
   try {
@@ -104,7 +105,7 @@ router.post('/:id', requireGlobalAdmin, async (req, res) => {
 });
 
 // Silme
-router.post('/:id/sil', requireGlobalAdmin, async (req, res) => {
+router.post('/:id/sil', requireLogin, requireFamilyEditAccess('id'), async (req, res) => {
   await FamilyGroup.findByIdAndDelete(req.params.id);
   res.redirect('/aileler');
 });

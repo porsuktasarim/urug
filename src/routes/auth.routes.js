@@ -1,6 +1,7 @@
 const express = require('express');
 const User = require('../models/User');
 const Membership = require('../models/Membership');
+const Role = require('../models/Role');
 const { t } = require('../lang');
 
 const router = express.Router();
@@ -50,7 +51,10 @@ router.post('/kurulum-admin', async (req, res) => {
   try {
     const passwordHash = await User.hashPassword(password);
     const user = await User.create({ username: username.trim(), passwordHash });
-    await Membership.create({ userId: user._id, role: 'globalAdmin' });
+
+    // "Süper Admin" rolü uygulama açılışında seedRoles ile garanti oluşturuluyor.
+    const superAdminRole = await Role.findOne({ name: 'Süper Admin' });
+    await Membership.create({ userId: user._id, roleId: superAdminRole ? superAdminRole._id : null });
 
     req.session.userId = user._id;
     req.session.username = user.username;
@@ -86,11 +90,12 @@ router.post('/giris', async (req, res) => {
     });
   }
 
-  const membership = await Membership.findOne({ userId: user._id, role: 'globalAdmin' });
+  const memberships = await Membership.find({ userId: user._id }).populate('roleId');
+  const hasGlobalScope = memberships.some((m) => m.roleId && m.roleId.scopeType === 'global');
 
   req.session.userId = user._id;
   req.session.username = user.username;
-  req.session.isGlobalAdmin = !!membership;
+  req.session.isGlobalAdmin = hasGlobalScope;
 
   res.redirect(next);
 });

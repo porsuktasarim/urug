@@ -1,0 +1,58 @@
+<%- include('../../partials/header', { title: role && role._id ? 'Rolü Düzenle' : 'Yeni Rol', t }) %>
+
+  <div style="max-width: 480px;">
+    <h1 class="h4 mb-4">
+      <%= role && role._id ? 'Rolü Düzenle: ' + role.name : 'Yeni Rol Ekle' %>
+    </h1>
+
+    <% if (errorMessage) { %>
+      <div class="alert alert-danger"><%= errorMessage %></div>
+    <% } %>
+
+    <% var isSystem = role && role.isSystemRole; %>
+    <% if (isSystem) { %>
+      <div class="alert alert-secondary">Bu sistem rolü — ad ve kapsam tipi değiştirilemez, sadece izinler düzenlenebilir.</div>
+    <% } %>
+
+    <form method="POST"
+          action="<%= role && role._id ? '/admin/roller/' + role._id : '/admin/roller' %>">
+
+      <div class="mb-3">
+        <label class="form-label">Rol Adı</label>
+        <input type="text" name="name" class="form-control"
+               value="<%= role ? role.name : '' %>"
+               <%= isSystem ? 'readonly' : 'required' %>>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Kapsam Tipi</label>
+        <select name="scopeType" class="form-select" <%= isSystem || (role && role._id) ? 'disabled' : '' %>>
+          <% Object.keys(scopeTypeLabels).forEach(function (key) { %>
+            <option value="<%= key %>" <%= role && role.scopeType === key ? 'selected' : '' %>>
+              <%= scopeTypeLabels[key] %>
+            </option>
+          <% }); %>
+        </select>
+        <% if (role && role._id) { %>
+          <input type="hidden" name="scopeType" value="<%= role.scopeType %>">
+          <div class="form-text">Kapsam tipi, kayıtlı üyeliklerle tutarlılık için sonradan değiştirilemez.</div>
+        <% } %>
+      </div>
+
+      <label class="form-label d-block">İzinler</label>
+      <% Object.keys(permissionLabels).forEach(function (key) { %>
+        <div class="form-check mb-2">
+          <input type="checkbox" name="<%= key %>" class="form-check-input" id="perm_<%= key %>"
+                 <%= role && role.permissions && role.permissions[key] ? 'checked' : '' %>>
+          <label class="form-check-label" for="perm_<%= key %>"><%= permissionLabels[key] %></label>
+        </div>
+      <% }); %>
+
+      <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary"><%= t('common.actions.save') %></button>
+        <a href="/admin/roller" class="btn btn-outline-secondary"><%= t('common.actions.cancel') %></a>
+      </div>
+    </form>
+  </div>
+
+<%- include('../../partials/footer', { t }) %>
