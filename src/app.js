@@ -15,6 +15,7 @@ const personsRouter = require('./routes/persons.routes');
 const relationshipsRouter = require('./routes/relationships.routes');
 const personProfileRouter = require('./routes/personProfile.routes');
 const authRouter = require('./routes/auth.routes');
+const treeViewRouter = require('./routes/treeView.routes');
 
 const app = express();
 const PORT = process.env.PORT || 1207;
@@ -61,6 +62,7 @@ app.use('/aileler', familyGroupsRouter);
 app.use('/admin/ozellikler', attributeDefinitionsRouter);
 app.use('/kisiler', personsRouter);
 app.use('/kisiler', relationshipsRouter);
+app.use('/kisiler', treeViewRouter);
 
 // ÖNEMLİ: Bu route en son mount edilmeli — /:familySlug/:personSlug deseni
 // path segment sayısı bakımından diğer route'larla (ör. /aileler/new)

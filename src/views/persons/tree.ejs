@@ -1,0 +1,203 @@
+<%- include('../partials/header', { title: focalPersonName + ' — Ağaç', t }) %>
+
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="h4 mb-0">Aile Ağacı — <%= focalPersonName %></h1>
+    <form method="GET" class="d-flex align-items-center gap-2">
+      <label class="small text-muted mb-0">Üst soy</label>
+      <input type="number" name="ustNesil" class="form-control form-control-sm" style="width:70px;"
+             min="0" max="<%= maxGenerations %>" value="<%= upGenerations %>">
+      <label class="small text-muted mb-0">Alt soy</label>
+      <input type="number" name="altNesil" class="form-control form-control-sm" style="width:70px;"
+             min="0" max="<%= maxGenerations %>" value="<%= downGenerations %>">
+      <button type="submit" class="btn btn-sm btn-primary">Uygula</button>
+    </form>
+  </div>
+
+  <div class="text-muted small mb-2">
+    Fare tekerleği/pinch ile yakınlaştır, sürükleyerek kaydır. Bir karta tıklayınca profiline gidersin.
+  </div>
+
+  <div id="treeContainer" class="border rounded bg-light" style="width:100%; height:70vh; overflow:hidden; position:relative;">
+    <svg id="treeSvg" style="width:100%; height:100%;"></svg>
+    <div id="treeNodesLayer" style="position:absolute; top:0; left:0; width:0; height:0;"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script>
+    (function () {
+      var treeData = <%- treeDataJson %>;
+      var focalId = '<%= focalPersonId %>';
+
+      var NODE_WIDTH = 170;
+      var NODE_HEIGHT = 64;
+      var COL_GAP = 24;
+      var ROW_HEIGHT = 130;
+
+      var container = document.getElementById('treeContainer');
+      var svg = d3.select('#treeSvg');
+      var nodesLayer = d3.select('#treeNodesLayer');
+      var zoomGroupSvg = svg.append('g').attr('class', 'zoom-group-svg');
+
+      // === 1) Alt soy (descendant) hiyerarşisi ===
+      var descendantNodes = [];
+      var descendantLinks = [];
+
+      if (treeData.descendantTree) {
+        var descRoot = d3.hierarchy(treeData.descendantTree, function (d) { return d.children; });
+        var descTreeLayout = d3.tree().nodeSize([NODE_WIDTH + COL_GAP, ROW_HEIGHT]);
+        descTreeLayout(descRoot);
+
+        var rootX = descRoot.x;
+        descRoot.each(function (d) {
+          d.screenX = d.x - rootX;
+          d.screenY = d.depth * ROW_HEIGHT;
+        });
+
+        descRoot.each(function (d) {
+          if (d.depth === 0) return; // odak kişi ayrıca (tek nüsha) çiziliyor
+          descendantNodes.push(d);
+          var parentScreenX = d.parent.depth === 0 ? 0 : d.parent.screenX;
+          var parentScreenY = d.parent.depth === 0 ? 0 : d.parent.screenY;
+          descendantLinks.push({
+            x1: parentScreenX, y1: parentScreenY,
+            x2: d.screenX, y2: d.screenY,
+          });
+        });
+      }
+
+      // === 2) Üst soy (ancestor) hiyerarşisi — y ekseni ters (yukarı) ===
+      var ancestorNodes = [];
+      var ancestorLinks = [];
+
+      if (treeData.ancestorTree) {
+        var ancRoot = d3.hierarchy(treeData.ancestorTree, function (d) { return d.children; });
+        var ancTreeLayout = d3.tree().nodeSize([NODE_WIDTH + COL_GAP, ROW_HEIGHT]);
+        ancTreeLayout(ancRoot);
+
+        var ancRootX = ancRoot.x;
+        ancRoot.each(function (d) {
+          d.screenX = d.x - ancRootX;
+          d.screenY = -d.depth * ROW_HEIGHT;
+        });
+
+        ancRoot.each(function (d) {
+          if (d.depth === 0) return;
+          ancestorNodes.push(d);
+          var parentScreenX = d.parent.depth === 0 ? 0 : d.parent.screenX;
+          var parentScreenY = d.parent.depth === 0 ? 0 : d.parent.screenY;
+          ancestorLinks.push({
+            x1: parentScreenX, y1: parentScreenY,
+            x2: d.screenX, y2: d.screenY,
+          });
+        });
+      }
+
+      // === 3) Odak kişi + eşleri (satır 0) ===
+      var focalAndSpouses = [{ data: treeData.focal, screenX: 0, screenY: 0, isFocal: true }];
+      var spouseLinks = [];
+      (treeData.focalSpouses || []).forEach(function (spouse, i) {
+        var sx = (i + 1) * (NODE_WIDTH + COL_GAP);
+        focalAndSpouses.push({ data: spouse, screenX: sx, screenY: 0, isFocal: false });
+        spouseLinks.push({ x1: 0, y1: 0, x2: sx, y2: 0 });
+      });
+
+      // === 4) Tüm koordinatları bul, canvas boyutunu/merkezini hesapla ===
+      var allPositioned = []
+        .concat(descendantNodes.map(function (d) { return { data: d.data, screenX: d.screenX, screenY: d.screenY, isFocal: false }; }))
+        .concat(ancestorNodes.map(function (d) { return { data: d.data, screenX: d.screenX, screenY: d.screenY, isFocal: false }; }))
+        .concat(focalAndSpouses);
+
+      var minX = d3.min(allPositioned, function (d) { return d.screenX; }) - NODE_WIDTH;
+      var maxX = d3.max(allPositioned, function (d) { return d.screenX; }) + NODE_WIDTH;
+      var minY = d3.min(allPositioned, function (d) { return d.screenY; }) - NODE_HEIGHT;
+      var maxY = d3.max(allPositioned, function (d) { return d.screenY; }) + NODE_HEIGHT;
+
+      var canvasWidth = maxX - minX;
+      var canvasHeight = maxY - minY;
+      var offsetX = -minX;
+      var offsetY = -minY;
+
+      // === 5) SVG bağlantı çizgilerini çiz ===
+      var allLinks = descendantLinks.concat(ancestorLinks).concat(spouseLinks);
+
+      zoomGroupSvg.selectAll('path.tree-link')
+        .data(allLinks)
+        .enter()
+        .append('path')
+        .attr('class', 'tree-link')
+        .attr('fill', 'none')
+        .attr('stroke', '#adb5bd')
+        .attr('stroke-width', 2)
+        .attr('d', function (d) {
+          var x1 = d.x1 + offsetX, y1 = d.y1 + offsetY;
+          var x2 = d.x2 + offsetX, y2 = d.y2 + offsetY;
+          var midY = (y1 + y2) / 2;
+          return 'M' + x1 + ',' + y1 + ' C' + x1 + ',' + midY + ' ' + x2 + ',' + midY + ' ' + x2 + ',' + y2;
+        });
+
+      // === 6) Kartları HTML katmanında çiz ===
+      nodesLayer
+        .style('width', canvasWidth + 'px')
+        .style('height', canvasHeight + 'px');
+
+      var cardsDiv = nodesLayer.selectAll('div.tree-card')
+        .data(allPositioned)
+        .enter()
+        .append('div')
+        .attr('class', 'tree-card')
+        .style('position', 'absolute')
+        .style('left', function (d) { return (d.screenX + offsetX - NODE_WIDTH / 2) + 'px'; })
+        .style('top', function (d) { return (d.screenY + offsetY - NODE_HEIGHT / 2) + 'px'; })
+        .style('width', NODE_WIDTH + 'px')
+        .style('background', '#fff')
+        .style('border-radius', '8px')
+        .style('padding', '8px 10px')
+        .style('box-shadow', '0 1px 3px rgba(0,0,0,0.15)')
+        .style('cursor', function (d) { return d.data.url ? 'pointer' : 'default'; })
+        .style('border-left', function (d) { return '4px solid ' + d.data.color; })
+        .style('outline', function (d) { return d.data.isFocal ? '3px solid #212529' : 'none'; })
+        .style('outline-offset', '2px')
+        .on('click', function (event, d) {
+          if (d.data.url) window.location.href = d.data.url;
+        });
+
+      cardsDiv.append('div')
+        .style('font-size', '0.85rem')
+        .style('font-weight', '600')
+        .html(function (d) { return d.data.nameHtml; });
+
+      cardsDiv.append('div')
+        .style('font-size', '0.72rem')
+        .style('color', '#6c757d')
+        .text(function (d) {
+          var parts = [];
+          if (d.data.birthLabel) parts.push(d.data.birthLabel);
+          if (d.data.deathLabel) parts.push('– ' + d.data.deathLabel);
+          return parts.join(' ');
+        });
+
+      // === 7) Zoom/Pan ===
+      var initialScale = 0.9;
+      var zoom = d3.zoom()
+        .scaleExtent([0.2, 2.5])
+        .on('zoom', function (event) {
+          var t = event.transform;
+          zoomGroupSvg.attr('transform', t);
+          nodesLayer.style('transform', 'translate(' + t.x + 'px,' + t.y + 'px) scale(' + t.k + ')');
+          nodesLayer.style('transform-origin', '0 0');
+        });
+
+      svg.call(zoom);
+
+      // Odak kişiyi başlangıçta ekranın ortasına getir
+      var containerRect = container.getBoundingClientRect();
+      var focalScreenX = 0 + offsetX;
+      var focalScreenY = 0 + offsetY;
+      var initialX = containerRect.width / 2 - focalScreenX * initialScale;
+      var initialY = containerRect.height / 2 - focalScreenY * initialScale;
+
+      svg.call(zoom.transform, d3.zoomIdentity.translate(initialX, initialY).scale(initialScale));
+    })();
+  </script>
+
+<%- include('../partials/footer', { t }) %>
