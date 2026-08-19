@@ -16,6 +16,7 @@ const relationshipsRouter = require('./routes/relationships.routes');
 const personProfileRouter = require('./routes/personProfile.routes');
 const authRouter = require('./routes/auth.routes');
 const userManagementRouter = require('./routes/userManagement.routes');
+const settingsRouter = require('./routes/settings.routes');
 const treeViewRouter = require('./routes/treeView.routes');
 
 const app = express();
@@ -62,6 +63,7 @@ app.use('/', authRouter);
 app.use('/aileler', familyGroupsRouter);
 app.use('/admin/ozellikler', attributeDefinitionsRouter);
 app.use('/admin/kullanicilar', userManagementRouter);
+app.use('/ayarlar', settingsRouter);
 app.use('/kisiler', personsRouter);
 app.use('/kisiler', relationshipsRouter);
 app.use('/kisiler', treeViewRouter);

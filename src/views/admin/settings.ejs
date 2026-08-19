@@ -1,0 +1,29 @@
+<%- include('../partials/header', { title: 'Ayarlar', t }) %>
+
+  <h1 class="h3 mb-4">Ayarlar</h1>
+
+  <div class="list-group" style="max-width: 480px;">
+    <a href="/admin/ozellikler" class="list-group-item list-group-item-action d-flex align-items-center gap-3">
+      <i class="bi bi-list-check fs-4"></i>
+      <div>
+        <div class="fw-semibold">Kişi Özellikleri</div>
+        <div class="text-muted small">Kişi formundaki alanları ekle, sırala, düzenle</div>
+      </div>
+    </a>
+    <a href="/admin/kullanicilar" class="list-group-item list-group-item-action d-flex align-items-center gap-3">
+      <i class="bi bi-people fs-4"></i>
+      <div>
+        <div class="fw-semibold">Kullanıcılar</div>
+        <div class="text-muted small">Kullanıcı ekle, rol/yetki ata ve düzenle</div>
+      </div>
+    </a>
+    <a href="/aileler" class="list-group-item list-group-item-action d-flex align-items-center gap-3">
+      <i class="bi bi-diagram-3 fs-4"></i>
+      <div>
+        <div class="fw-semibold">Aileler</div>
+        <div class="text-muted small">Aile ekle, düzenle, renk ata</div>
+      </div>
+    </a>
+  </div>
+
+<%- include('../partials/footer', { t }) %>

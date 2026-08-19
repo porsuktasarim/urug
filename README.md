@@ -14,6 +14,8 @@ Self-hosted aile şeceresi uygulaması.
 
 **Diğer tamamlanan işler (özet):** Temel altyapı, FamilyGroup (ad/slug/renk), AttributeDefinition (sıralanabilir çekirdek+özel alanlar), Person (göbek adı, doğum/ölüm tarihi + Hicri/Rumi/Miladi, TC şifreleme, aile opsiyonel, doğum/mezar yeri), slug+arama, ParentChild/Union ilişkileri (otomatik cinsiyet/sülale ataması), Kişi Kartı (QR kod, mini kartlar), **D3 ağaç render** (nesil derinliği seçilebilir, tıklayınca büyüyen kart), genel görsel tema (turuncu/adaçayı/krem/antrasit paleti).
 
+**Ayarlar sayfası (`/ayarlar`, globalAdmin):** Kişi Özellikleri, Kullanıcılar ve Aileler yönetimi artık tek bir "Ayarlar" sayfası altında toplandı — üst menüde ayrı ayrı görünmüyorlar, sadece bir dişli (gear) ikonuyla erişiliyor. Hesap göstergesi (kullanıcı adı) de artık kişi ikonu + açılır menü (dropdown), Giriş/Çıkış da simge. Renk paleti: `#ff7f11` (turuncu, vurgu) / `#acbfa4` (adaçayı yeşili, ikincil) / `#e2e8ce` (krem, zemin) / `#262626` (antrasit, metin/navbar) — bkz. `src/public/css/theme.css`.
+
 **Sırada / bekleyen:**
 - Aile hikaye/açıklama alanı + foto galerisi
 - Kişi görseli yükleme

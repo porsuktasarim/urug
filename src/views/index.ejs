@@ -6,7 +6,9 @@
     <div class="d-flex gap-2 justify-content-center flex-wrap">
       <a href="/aileler" class="btn btn-primary"><%= t('family.title') %></a>
       <a href="/kisiler" class="btn btn-primary"><%= t('person.title') %></a>
-      <a href="/admin/ozellikler" class="btn btn-outline-secondary"><%= t('attribute.title') %></a>
+      <% if (typeof isGlobalAdmin !== 'undefined' && isGlobalAdmin) { %>
+        <a href="/ayarlar" class="btn btn-outline-secondary"><i class="bi bi-gear me-1"></i>Ayarlar</a>
+      <% } %>
     </div>
   </div>
 
