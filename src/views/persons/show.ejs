@@ -2,7 +2,7 @@
 
   <div style="max-width: 480px;">
     <h1 class="h3 mb-0">
-      <%= displayName(person) %>
+      <%- displayNameHtml(person) %>
       <% personalNicknames.forEach(function (nick, i) { %>
         <span class="fst-italic text-muted h5">"<%= nick %>"<%= i < personalNicknames.length - 1 ? ',' : '' %></span>
       <% }); %>

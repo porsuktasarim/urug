@@ -17,7 +17,7 @@
         <div class="list-group-item">
           <div class="d-flex justify-content-between align-items-start">
             <div>
-              <strong><%= displayName(p) %></strong>
+              <strong><%- displayNameHtml(p) %></strong>
               <% entry.personalNicknames.forEach(function (nick) { %>
                 <span class="fst-italic text-muted small">"<%= nick %>"</span>
               <% }); %>

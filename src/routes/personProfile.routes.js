@@ -5,7 +5,7 @@ const ParentChild = require('../models/ParentChild');
 const Union = require('../models/Union');
 const { t } = require('../lang');
 const { formatHistoricalYear } = require('../utils/historicalDateDisplay');
-const { displayName } = require('../utils/displayName');
+const { displayName, displayNameHtml } = require('../utils/displayName');
 const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
 const { personProfileUrl } = require('../utils/personLink');
 const { sortByBirthYear, childRelationLabel, getSiblings } = require('../utils/familyRelations');
@@ -53,6 +53,7 @@ async function renderProfile(res, person) {
     t,
     person,
     displayName,
+    displayNameHtml,
     formatHistoricalYear,
     personProfileUrl,
     childRelationLabel,

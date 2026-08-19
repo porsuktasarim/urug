@@ -64,6 +64,11 @@
               <label class="form-label">Göbek Adı <span class="text-muted small">(opsiyonel)</span></label>
               <input type="text" name="middleName" class="form-control"
                      value="<%= person && person.middleName ? person.middleName : '' %>">
+              <div class="form-text">
+                Ailesi/çevresi tarafından bilinen ama <strong>resmi kayıtlarda yer almayan</strong> ad —
+                ikinci resmi ad değildir. Girilirse kişi kartında italik gösterilir:
+                Resmi Ad <em>Göbek Adı</em> Soyad(lar)ı.
+              </div>
             </div>
 
           <% } else if (field.key === 'officialLastName') { %>

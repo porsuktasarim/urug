@@ -14,7 +14,7 @@ const { sortByBirthYear, childRelationLabel, getSiblings } = require('../utils/f
 const { personProfileUrl } = require('../utils/personLink');
 const { encryptTc, hashTc } = require('../utils/tcCrypto');
 const { t } = require('../lang');
-const { displayName } = require('../utils/displayName');
+const { displayName, displayNameHtml } = require('../utils/displayName');
 const { requireLogin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -152,6 +152,7 @@ router.get('/', async (req, res) => {
     persons: personsWithExtras,
     t,
     displayName,
+    displayNameHtml,
     personProfileUrl,
     formatHistoricalYear,
   });
