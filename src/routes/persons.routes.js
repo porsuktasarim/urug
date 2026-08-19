@@ -258,7 +258,7 @@ function validateBase(body) {
 
 // Yeni kayıt oluşturma
 router.post('/', requireLogin, async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -311,11 +311,13 @@ router.post('/', requireLogin, async (req, res) => {
       birthMonth: birthDate.month,
       birthCalendarType: birthDate.calendarType,
       birthOriginalYear: birthDate.originalYear,
+      birthPlace: birthPlace && birthPlace.trim() ? birthPlace.trim() : null,
       deathYear: deathDate.year,
       deathDay: deathDate.day,
       deathMonth: deathDate.month,
       deathCalendarType: deathDate.calendarType,
       deathOriginalYear: deathDate.originalYear,
+      burialPlace: burialPlace && burialPlace.trim() ? burialPlace.trim() : null,
       gender: gender || null,
       marriedLastName: finalMarriedLastName,
       useCombinedLastName: useCombinedLastName === 'on',
@@ -427,7 +429,7 @@ router.get('/:id/duzenle', requireLogin, async (req, res) => {
 
 // Güncelleme
 router.post('/:id', requireLogin, async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -487,11 +489,13 @@ router.post('/:id', requireLogin, async (req, res) => {
     existing.birthMonth = birthDate.month;
     existing.birthCalendarType = birthDate.calendarType;
     existing.birthOriginalYear = birthDate.originalYear;
+    existing.birthPlace = birthPlace && birthPlace.trim() ? birthPlace.trim() : null;
     existing.deathYear = deathDate.year;
     existing.deathDay = deathDate.day;
     existing.deathMonth = deathDate.month;
     existing.deathCalendarType = deathDate.calendarType;
     existing.deathOriginalYear = deathDate.originalYear;
+    existing.burialPlace = burialPlace && burialPlace.trim() ? burialPlace.trim() : null;
     existing.gender = gender || null;
     existing.marriedLastName = finalMarriedLastName;
     existing.useCombinedLastName = useCombinedLastName === 'on';

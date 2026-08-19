@@ -13,6 +13,8 @@ function serializePerson(person, isFocal) {
     nameHtml: displayNameHtml(person),
     birthLabel: person.birthYear ? formatHistoricalYear(person.birthYear) : null,
     deathLabel: person.deathYear ? formatHistoricalYear(person.deathYear) : null,
+    birthPlace: person.birthPlace || null,
+    burialPlace: person.burialPlace || null,
     color: person.familyGroupId && person.familyGroupId.colorCode ? person.familyGroupId.colorCode : '#94a3b8',
     url: personProfileUrl(person),
     isFocal: !!isFocal,

@@ -71,6 +71,9 @@ const personSchema = new mongoose.Schema(
       default: 'miladi',
     },
     birthOriginalYear: { type: Number, default: null },
+    birthPlace: { type: String, trim: true, default: null },
+
+    burialPlace: { type: String, trim: true, default: null }, // mezarının yeri
 
     deathYear: { type: Number, default: null }, // her zaman Miladi
     deathDay: { type: Number, default: null, min: 1, max: 31 },

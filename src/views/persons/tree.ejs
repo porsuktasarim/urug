@@ -14,7 +14,7 @@
   </div>
 
   <div class="text-muted small mb-2">
-    Fare tekerleği/pinch ile yakınlaştır, sürükleyerek kaydır. Bir karta tıklayınca profiline gidersin.
+    Fare tekerleği/pinch ile yakınlaştır, sürükleyerek kaydır. Bir karta tıklayınca genişleyip detay gösterir (tekrar tıklayınca kapanır); içindeki "Profile git" bağlantısından kişinin sayfasına gidebilirsin.
   </div>
 
   <div id="treeContainer" class="border rounded bg-light" style="width:100%; height:70vh; overflow:hidden; position:relative;">
@@ -140,41 +140,68 @@
         .style('width', canvasWidth + 'px')
         .style('height', canvasHeight + 'px');
 
+      var expandedId = null; // tek seferde en fazla 1 kart genişletilmiş olabilir
+
       var cardsDiv = nodesLayer.selectAll('div.tree-card')
         .data(allPositioned)
         .enter()
         .append('div')
         .attr('class', 'tree-card')
         .style('position', 'absolute')
-        .style('left', function (d) { return (d.screenX + offsetX - NODE_WIDTH / 2) + 'px'; })
-        .style('top', function (d) { return (d.screenY + offsetY - NODE_HEIGHT / 2) + 'px'; })
-        .style('width', NODE_WIDTH + 'px')
         .style('background', '#fff')
         .style('border-radius', '8px')
-        .style('padding', '8px 10px')
         .style('box-shadow', '0 1px 3px rgba(0,0,0,0.15)')
-        .style('cursor', function (d) { return d.data.url ? 'pointer' : 'default'; })
+        .style('cursor', 'pointer')
         .style('border-left', function (d) { return '4px solid ' + d.data.color; })
         .style('outline', function (d) { return d.data.isFocal ? '3px solid #212529' : 'none'; })
         .style('outline-offset', '2px')
+        .style('transition', 'width 0.15s ease, padding 0.15s ease')
         .on('click', function (event, d) {
-          if (d.data.url) window.location.href = d.data.url;
+          expandedId = (expandedId === d.data.id) ? null : d.data.id;
+          renderCardContents();
         });
 
-      cardsDiv.append('div')
-        .style('font-size', '0.85rem')
-        .style('font-weight', '600')
-        .html(function (d) { return d.data.nameHtml; });
+      function renderCardContents() {
+        cardsDiv
+          .style('width', function (d) { return (d.data.id === expandedId ? NODE_WIDTH + 60 : NODE_WIDTH) + 'px'; })
+          .style('padding', function (d) { return d.data.id === expandedId ? '10px 12px' : '8px 10px'; })
+          .style('z-index', function (d) { return d.data.id === expandedId ? 10 : 1; })
+          .style('left', function (d) {
+            var w = d.data.id === expandedId ? NODE_WIDTH + 60 : NODE_WIDTH;
+            return (d.screenX + offsetX - w / 2) + 'px';
+          })
+          .style('top', function (d) { return (d.screenY + offsetY - NODE_HEIGHT / 2) + 'px'; })
+          .html(function (d) {
+            var isExpanded = d.data.id === expandedId;
+            var html = '<div style="font-size:0.85rem;font-weight:600;">' + d.data.nameHtml + '</div>';
 
-      cardsDiv.append('div')
-        .style('font-size', '0.72rem')
-        .style('color', '#6c757d')
-        .text(function (d) {
-          var parts = [];
-          if (d.data.birthLabel) parts.push(d.data.birthLabel);
-          if (d.data.deathLabel) parts.push('– ' + d.data.deathLabel);
-          return parts.join(' ');
-        });
+            var dateParts = [];
+            if (d.data.birthLabel) dateParts.push(d.data.birthLabel);
+            if (d.data.deathLabel) dateParts.push('– ' + d.data.deathLabel);
+            if (dateParts.length > 0) {
+              html += '<div style="font-size:0.72rem;color:#6c757d;">' + dateParts.join(' ') + '</div>';
+            }
+
+            if (isExpanded) {
+              if (d.data.birthPlace) {
+                html += '<div style="font-size:0.72rem;color:#6c757d;margin-top:4px;">Doğum yeri: ' + d.data.birthPlace + '</div>';
+              }
+              if (d.data.burialPlace) {
+                html += '<div style="font-size:0.72rem;color:#6c757d;">Mezarı: ' + d.data.burialPlace + '</div>';
+              }
+              if (!d.data.birthPlace && !d.data.burialPlace) {
+                html += '<div style="font-size:0.72rem;color:#adb5bd;margin-top:4px;">Ek bilgi girilmemiş.</div>';
+              }
+              if (d.data.url) {
+                html += '<a href="' + d.data.url + '" style="font-size:0.75rem;display:inline-block;margin-top:6px;">Profile git &rarr;</a>';
+              }
+            }
+
+            return html;
+          });
+      }
+
+      renderCardContents();
 
       // === 7) Zoom/Pan ===
       var initialScale = 0.9;
