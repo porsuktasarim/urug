@@ -1,6 +1,7 @@
 const express = require('express');
 const FamilyGroup = require('../models/FamilyGroup');
 const { slugify } = require('../utils/slugify');
+const { randomAestheticHexColor } = require('../utils/familyColor');
 const { t } = require('../lang');
 const { requireLogin } = require('../middleware/auth');
 
@@ -22,18 +23,23 @@ router.get('/new', requireLogin, (req, res) => {
   res.render('family-groups/form', {
     t,
     familyGroup: null,
+    suggestedColor: randomAestheticHexColor(), // renk seçmezse bile boş kutuya bir öneri gelsin
     errorMessage: null,
   });
 });
 
 // Yeni kayıt oluşturma
 router.post('/', requireLogin, async (req, res) => {
-  const { name, slug } = req.body;
+  const { name, slug, colorCode } = req.body;
 
   try {
     const finalSlug = slug && slug.trim() ? slugify(slug) : slugify(name);
 
-    const familyGroup = new FamilyGroup({ name, slug: finalSlug });
+    const familyGroup = new FamilyGroup({
+      name,
+      slug: finalSlug,
+      colorCode: colorCode && colorCode.trim() ? colorCode.trim() : null,
+    });
     await familyGroup.save();
 
     res.redirect('/aileler');
@@ -45,7 +51,8 @@ router.post('/', requireLogin, async (req, res) => {
 
     res.status(400).render('family-groups/form', {
       t,
-      familyGroup: { name, slug },
+      familyGroup: { name, slug, colorCode },
+      suggestedColor: randomAestheticHexColor(),
       errorMessage,
     });
   }
@@ -59,12 +66,17 @@ router.get('/:id/duzenle', requireLogin, async (req, res) => {
     return res.status(404).send('Aile bulunamadı.');
   }
 
-  res.render('family-groups/form', { t, familyGroup, errorMessage: null });
+  res.render('family-groups/form', {
+    t,
+    familyGroup,
+    suggestedColor: randomAestheticHexColor(),
+    errorMessage: null,
+  });
 });
 
 // Güncelleme
 router.post('/:id', requireLogin, async (req, res) => {
-  const { name, slug } = req.body;
+  const { name, slug, colorCode } = req.body;
 
   try {
     const finalSlug = slug && slug.trim() ? slugify(slug) : slugify(name);
@@ -72,6 +84,7 @@ router.post('/:id', requireLogin, async (req, res) => {
     await FamilyGroup.findByIdAndUpdate(req.params.id, {
       name,
       slug: finalSlug,
+      colorCode: colorCode && colorCode.trim() ? colorCode.trim() : null,
     });
 
     res.redirect('/aileler');
@@ -83,7 +96,8 @@ router.post('/:id', requireLogin, async (req, res) => {
 
     res.status(400).render('family-groups/form', {
       t,
-      familyGroup: { _id: req.params.id, name, slug },
+      familyGroup: { _id: req.params.id, name, slug, colorCode },
+      suggestedColor: randomAestheticHexColor(),
       errorMessage,
     });
   }

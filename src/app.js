@@ -7,6 +7,7 @@ const MongoStore = require('connect-mongo');
 const { connectDB } = require('./config/db');
 const { ensureSystemAttributes } = require('./config/seedSystemAttributes');
 const { migratePersonSearchAndSlugKeys } = require('./config/migratePersonKeys');
+const { migrateFamilyColors } = require('./config/migrateFamilyColors');
 const { t } = require('./lang');
 const familyGroupsRouter = require('./routes/familyGroups.routes');
 const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
@@ -74,6 +75,7 @@ async function start() {
 
     await ensureSystemAttributes();
     await migratePersonSearchAndSlugKeys();
+    await migrateFamilyColors();
 
     app.listen(PORT, () => {
       console.log(t('system.serverStarted', { port: PORT }));
