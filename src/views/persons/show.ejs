@@ -1,111 +1,91 @@
 <%- include('../partials/header', { title: displayName(person), t }) %>
 
-  <div style="max-width: 480px;">
-    <h1 class="h3 mb-0">
-      <%- displayNameHtml(person) %>
-      <% personalNicknames.forEach(function (nick, i) { %>
-        <span class="fst-italic text-muted h5">"<%= nick %>"<%= i < personalNicknames.length - 1 ? ',' : '' %></span>
-      <% }); %>
-    </h1>
-    <% if (familyLakab) { %>
-      <div class="mb-1">
-        <span class="badge rounded-pill text-bg-light border text-muted"><%= familyLakab.value %></span>
+  <div class="card shadow-sm mx-auto" style="max-width: 640px;">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+          <h1 class="h3 mb-0">
+            <%- displayNameHtml(person) %>
+            <% personalNicknames.forEach(function (nick, i) { %>
+              <span class="fst-italic text-muted h5">"<%= nick %>"<%= i < personalNicknames.length - 1 ? ',' : '' %></span>
+            <% }); %>
+          </h1>
+          <% if (familyLakab) { %>
+            <div class="mb-1">
+              <span class="badge rounded-pill text-bg-light border text-muted"><%= familyLakab.value %></span>
+            </div>
+          <% } %>
+          <p class="text-muted mb-0">
+            <% if (person.familyGroupId) { %>
+              <span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background-color:<%= person.familyGroupId.colorCode || '#94a3b8' %>;"></span>
+              <%= person.familyGroupId.name %>
+            <% } else { %>
+              Aile bilgisi yok
+            <% } %>
+            <% if (person.birthYear) { %> · <%= formatHistoricalYear(person.birthYear) %><% } %><% if (person.deathYear) { %> - <%= formatHistoricalYear(person.deathYear) %><% } %>
+          </p>
+        </div>
+
+        <% if (qrCodeDataUri) { %>
+          <div class="text-center flex-shrink-0">
+            <img src="<%= qrCodeDataUri %>" alt="Profil QR kodu" style="width:90px;height:90px;">
+            <div class="text-muted" style="font-size: 0.7rem;">Profile git</div>
+          </div>
+        <% } %>
       </div>
-    <% } %>
-    <p class="text-muted">
-      <%= person.familyGroupId ? person.familyGroupId.name : 'Aile bilgisi yok' %>
-      <% if (person.birthYear) { %> · <%= formatHistoricalYear(person.birthYear) %><% } %><% if (person.deathYear) { %> - <%= formatHistoricalYear(person.deathYear) %><% } %>
-    </p>
 
-    <h2 class="h6 text-muted mt-4">Üst Soy</h2>
-    <div class="mb-1">
-      <strong>Baba:</strong>
-      <% if (father) { %>
-        <% var fatherUrl = personProfileUrl(father); %>
-        <% if (fatherUrl) { %>
-          <a href="<%= fatherUrl %>"><%= displayName(father) %></a>
-        <% } else { %>
-          <%= displayName(father) %>
+      <hr class="my-3">
+
+      <h2 class="h6 text-muted">Üst Soy</h2>
+      <div class="mb-3">
+        <% if (father) { %>
+          <%- include('../partials/personMiniCard', { person: father, url: personProfileUrl(father), displayNameHtml, formatHistoricalYear, relationLabel: 'baba' }) %>
         <% } %>
-      <% } else { %>
-        <span class="text-muted">bilinmiyor</span>
-      <% } %>
-    </div>
-    <div class="mb-3">
-      <strong>Anne:</strong>
-      <% if (mother) { %>
-        <% var motherUrl = personProfileUrl(mother); %>
-        <% if (motherUrl) { %>
-          <a href="<%= motherUrl %>"><%= displayName(mother) %></a>
-        <% } else { %>
-          <%= displayName(mother) %>
+        <% if (mother) { %>
+          <%- include('../partials/personMiniCard', { person: mother, url: personProfileUrl(mother), displayNameHtml, formatHistoricalYear, relationLabel: 'anne' }) %>
         <% } %>
-      <% } else { %>
-        <span class="text-muted">bilinmiyor</span>
-      <% } %>
+        <% if (!father && !mother) { %>
+          <p class="text-muted small mb-0">Bilinmiyor.</p>
+        <% } %>
+      </div>
+
+      <h2 class="h6 text-muted">Kardeşler</h2>
+      <div class="mb-3">
+        <% if (siblings.length > 0) { %>
+          <% siblings.forEach(function (sib) { %>
+            <%- include('../partials/personMiniCard', { person: sib, url: personProfileUrl(sib), displayNameHtml, formatHistoricalYear }) %>
+          <% }); %>
+        <% } else { %>
+          <p class="text-muted small mb-0">Kayıtlı kardeş yok.</p>
+        <% } %>
+      </div>
+
+      <h2 class="h6 text-muted">Eş</h2>
+      <div class="mb-3">
+        <% if (spouses.length > 0) { %>
+          <% spouses.forEach(function (spouse) { %>
+            <%- include('../partials/personMiniCard', { person: spouse, url: personProfileUrl(spouse), displayNameHtml, formatHistoricalYear }) %>
+          <% }); %>
+        <% } else { %>
+          <p class="text-muted small mb-0">Kayıtlı eş yok.</p>
+        <% } %>
+      </div>
+
+      <h2 class="h6 text-muted">Alt Soy</h2>
+      <div class="mb-3">
+        <% if (children.length > 0) { %>
+          <% children.forEach(function (child) { %>
+            <%- include('../partials/personMiniCard', { person: child, url: personProfileUrl(child), displayNameHtml, formatHistoricalYear, relationLabel: childRelationLabel(child) }) %>
+          <% }); %>
+        <% } else { %>
+          <p class="text-muted small mb-0">Kayıtlı çocuk yok.</p>
+        <% } %>
+      </div>
+
+      <a href="/kisiler/<%= person._id %>/duzenle" class="btn btn-outline-secondary btn-sm">
+        <%= t('common.actions.edit') %>
+      </a>
     </div>
-
-    <h2 class="h6 text-muted mt-4">Kardeşler</h2>
-    <% if (siblings.length > 0) { %>
-      <ul>
-        <% siblings.forEach(function (sib) { %>
-          <% var sibUrl = personProfileUrl(sib); %>
-          <li>
-            <% if (sibUrl) { %>
-              <a href="<%= sibUrl %>"><%= displayName(sib) %></a>
-            <% } else { %>
-              <%= displayName(sib) %>
-            <% } %>
-            <% if (sib.birthYear) { %><span class="text-muted small"> (<%= formatHistoricalYear(sib.birthYear) %>)</span><% } %>
-          </li>
-        <% }); %>
-      </ul>
-    <% } else { %>
-      <p class="text-muted">Kayıtlı kardeş yok.</p>
-    <% } %>
-
-    <h2 class="h6 text-muted mt-4">Eş</h2>
-    <% if (spouses.length > 0) { %>
-      <ul>
-        <% spouses.forEach(function (spouse) { %>
-          <% var spouseUrl = personProfileUrl(spouse); %>
-          <li>
-            <% if (spouseUrl) { %>
-              <a href="<%= spouseUrl %>"><%= displayName(spouse) %></a>
-            <% } else { %>
-              <%= displayName(spouse) %>
-            <% } %>
-          </li>
-        <% }); %>
-      </ul>
-    <% } else { %>
-      <p class="text-muted">Kayıtlı eş yok.</p>
-    <% } %>
-
-    <h2 class="h6 text-muted mt-4">Alt Soy</h2>
-    <% if (children.length > 0) { %>
-      <ul>
-        <% children.forEach(function (child) { %>
-          <% var childUrl = personProfileUrl(child); %>
-          <% var relLabel = childRelationLabel(child); %>
-          <li>
-            <% if (childUrl) { %>
-              <a href="<%= childUrl %>"><%= displayName(child) %></a>
-            <% } else { %>
-              <%= displayName(child) %>
-            <% } %>
-            <% if (relLabel) { %><span class="text-muted small"> (<%= relLabel %>)</span><% } %>
-            <% if (child.birthYear) { %><span class="text-muted small"> · <%= formatHistoricalYear(child.birthYear) %></span><% } %>
-          </li>
-        <% }); %>
-      </ul>
-    <% } else { %>
-      <p class="text-muted">Kayıtlı çocuk yok.</p>
-    <% } %>
-
-    <a href="/kisiler/<%= person._id %>/duzenle" class="btn btn-outline-secondary btn-sm mt-2">
-      <%= t('common.actions.edit') %>
-    </a>
   </div>
 
 <%- include('../partials/footer', { t }) %>

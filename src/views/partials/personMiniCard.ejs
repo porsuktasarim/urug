@@ -1,0 +1,25 @@
+<%
+/*
+ * Küçük kişi kartı — kompakt referans gösterimi.
+ * Beklenen local'ler: person, url (personProfileUrl sonucu, null olabilir),
+ * displayNameHtml, formatHistoricalYear, relationLabel (opsiyonel, ör. "oğlu")
+ */
+var cardColor = (person.familyGroupId && person.familyGroupId.colorCode) ? person.familyGroupId.colorCode : '#94a3b8';
+%>
+<div class="position-relative border rounded p-2 mb-2 me-2 d-inline-block align-top bg-white"
+     style="border-left: 4px solid <%= cardColor %> !important; min-width: 170px; max-width: 220px;">
+  <div class="fw-semibold small">
+    <%- displayNameHtml(person) %>
+    <% if (typeof relationLabel !== 'undefined' && relationLabel) { %>
+      <span class="text-muted fw-normal">(<%= relationLabel %>)</span>
+    <% } %>
+  </div>
+  <% if (person.birthYear || person.deathYear) { %>
+    <div class="text-muted" style="font-size: 0.75rem;">
+      <% if (person.birthYear) { %><%= formatHistoricalYear(person.birthYear) %><% } %><% if (person.deathYear) { %> – <%= formatHistoricalYear(person.deathYear) %><% } %>
+    </div>
+  <% } %>
+  <% if (url) { %>
+    <a href="<%= url %>" class="stretched-link" aria-label="Profile git"></a>
+  <% } %>
+</div>

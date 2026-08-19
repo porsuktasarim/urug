@@ -9,6 +9,7 @@ const { displayName, displayNameHtml } = require('../utils/displayName');
 const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
 const { personProfileUrl } = require('../utils/personLink');
 const { sortByBirthYear, childRelationLabel, getSiblings } = require('../utils/familyRelations');
+const { generateProfileQrCode } = require('../utils/qrCode');
 
 const router = express.Router();
 
@@ -49,6 +50,9 @@ async function renderProfile(res, person) {
     motherPerson ? motherPerson._id : null
   );
 
+  const ownProfileUrl = personProfileUrl(person);
+  const qrCodeDataUri = ownProfileUrl ? await generateProfileQrCode(ownProfileUrl) : null;
+
   res.render('persons/show', {
     t,
     person,
@@ -57,6 +61,7 @@ async function renderProfile(res, person) {
     formatHistoricalYear,
     personProfileUrl,
     childRelationLabel,
+    qrCodeDataUri,
     father: fatherPerson,
     mother: motherPerson,
     spouses,

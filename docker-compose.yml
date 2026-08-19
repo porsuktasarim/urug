@@ -11,6 +11,7 @@ services:
       - TC_ENCRYPTION_KEY=${TC_ENCRYPTION_KEY}
       - TC_HMAC_SECRET=${TC_HMAC_SECRET}
       - SESSION_SECRET=${SESSION_SECRET}
+      - BASE_URL=${BASE_URL}
     depends_on:
       - mongo
     healthcheck:
