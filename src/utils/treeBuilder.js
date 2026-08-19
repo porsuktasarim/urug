@@ -64,7 +64,10 @@ async function buildAncestorNode(personId, remainingGenerations) {
 async function getSpouses(personId) {
   const unions = await Union.find({
     $or: [{ personAId: personId }, { personBId: personId }],
-  }).populate(['personAId', 'personBId']);
+  }).populate([
+    { path: 'personAId', populate: { path: 'familyGroupId' } },
+    { path: 'personBId', populate: { path: 'familyGroupId' } },
+  ]);
 
   return unions.map((u) =>
     String(u.personAId._id) === String(personId) ? u.personBId : u.personAId

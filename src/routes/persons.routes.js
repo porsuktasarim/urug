@@ -116,7 +116,10 @@ router.get('/', async (req, res) => {
   // kişi başına lookup map'i olarak hazırlıyoruz.
   const unions = await Union.find({
     $or: [{ personAId: { $in: personIds } }, { personBId: { $in: personIds } }],
-  }).populate(['personAId', 'personBId']);
+  }).populate([
+    { path: 'personAId', populate: { path: 'familyGroupId' } },
+    { path: 'personBId', populate: { path: 'familyGroupId' } },
+  ]);
 
   const spousesByPersonId = new Map();
   unions.forEach((u) => {

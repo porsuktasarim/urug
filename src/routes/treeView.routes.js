@@ -12,7 +12,7 @@ const DEFAULT_DOWN = 3;
 const MAX_GENERATIONS = 6; // performans/okunabilirlik için makul bir üst sınır
 
 router.get('/:id/agac', async (req, res) => {
-  const focalPerson = await Person.findById(req.params.id);
+  const focalPerson = await Person.findById(req.params.id).populate('familyGroupId');
   if (!focalPerson) {
     return res.status(404).send('Kişi bulunamadı.');
   }
