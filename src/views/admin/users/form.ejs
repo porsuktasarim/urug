@@ -1,0 +1,116 @@
+<%- include('../../partials/header', { title: targetUser && targetUser._id ? 'Kullanıcıyı Düzenle' : 'Yeni Kullanıcı', t }) %>
+
+  <div style="max-width: 480px;">
+    <h1 class="h4 mb-4">
+      <%= targetUser && targetUser._id ? 'Kullanıcıyı Düzenle: ' + targetUser.username : 'Yeni Kullanıcı Ekle' %>
+    </h1>
+
+    <% if (errorMessage) { %>
+      <div class="alert alert-danger"><%= errorMessage %></div>
+    <% } %>
+
+    <form method="POST"
+          action="<%= targetUser && targetUser._id ? '/admin/kullanicilar/' + targetUser._id : '/admin/kullanicilar' %>">
+
+      <% if (!targetUser || !targetUser._id) { %>
+        <div class="mb-3">
+          <label class="form-label">Kullanıcı Adı</label>
+          <input type="text" name="username" class="form-control" required
+                 value="<%= targetUser ? targetUser.username : '' %>">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Şifre <span class="text-muted small">(en az 8 karakter)</span></label>
+          <input type="password" name="password" class="form-control" required minlength="8">
+        </div>
+      <% } %>
+
+      <div class="mb-3">
+        <label class="form-label">Rol</label>
+        <select name="role" id="roleSelect" class="form-select">
+          <% Object.keys(roleLabels).forEach(function (roleKey) { %>
+            <option value="<%= roleKey %>" <%= membership && membership.role === roleKey ? 'selected' : '' %>>
+              <%= roleLabels[roleKey] %>
+            </option>
+          <% }); %>
+        </select>
+        <div class="form-text">
+          <strong>Global Admin:</strong> her şeyi düzenler. <strong>Aile Admini:</strong> sadece seçtiğin ailedeki kişileri düzenler. <strong>Üye:</strong> sadece seçtiğin kişiyi ve onun altsoyunu düzenler.
+        </div>
+      </div>
+
+      <div class="mb-3" id="familyGroupWrap">
+        <label class="form-label">Aile <span class="text-muted small">(sadece Aile Admini için)</span></label>
+        <select name="familyGroupId" class="form-select">
+          <option value="">—</option>
+          <% familyGroups.forEach(function (fg) { %>
+            <option value="<%= fg._id %>" <%= membership && String(membership.familyGroupId) === String(fg._id) ? 'selected' : '' %>>
+              <%= fg.name %>
+            </option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="mb-4" id="scopePersonWrap">
+        <label class="form-label">Kapsam Kişisi <span class="text-muted small">(sadece Üye için — kendisi ve altsoyu düzenlenebilir olur)</span></label>
+        <input type="text" id="scopePersonSearch" class="form-control" placeholder="Ad-soyad yazıp aramaya başla" autocomplete="off"
+               value="<%= scopePersonName %>">
+        <input type="hidden" name="scopePersonId" id="scopePersonId"
+               value="<%= membership && membership.scopePersonId ? (membership.scopePersonId._id || membership.scopePersonId) : '' %>">
+        <div id="scopePersonResults" class="list-group mt-1"></div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><%= t('common.actions.save') %></button>
+        <a href="/admin/kullanicilar" class="btn btn-outline-secondary"><%= t('common.actions.cancel') %></a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      var roleSelect = document.getElementById('roleSelect');
+      var familyGroupWrap = document.getElementById('familyGroupWrap');
+      var scopePersonWrap = document.getElementById('scopePersonWrap');
+
+      function updateVisibility() {
+        familyGroupWrap.style.display = roleSelect.value === 'familyAdmin' ? 'block' : 'none';
+        scopePersonWrap.style.display = roleSelect.value === 'member' ? 'block' : 'none';
+      }
+      roleSelect.addEventListener('change', updateVisibility);
+      updateVisibility();
+
+      var searchInput = document.getElementById('scopePersonSearch');
+      var hiddenId = document.getElementById('scopePersonId');
+      var results = document.getElementById('scopePersonResults');
+      var debounceTimer = null;
+
+      searchInput.addEventListener('input', function () {
+        var q = searchInput.value.trim();
+        hiddenId.value = '';
+        clearTimeout(debounceTimer);
+        if (q.length < 2) { results.innerHTML = ''; return; }
+
+        debounceTimer = setTimeout(function () {
+          fetch('/kisiler/api/ara?q=' + encodeURIComponent(q))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              results.innerHTML = '';
+              (data.results || []).forEach(function (p) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action';
+                btn.textContent = p.displayName + (p.birthYear ? ' (' + p.birthYear + ')' : '');
+                btn.addEventListener('click', function () {
+                  searchInput.value = p.displayName;
+                  hiddenId.value = p.id;
+                  results.innerHTML = '';
+                });
+                results.appendChild(btn);
+              });
+            });
+        }, 300);
+      });
+    })();
+  </script>
+
+<%- include('../../partials/footer', { t }) %>

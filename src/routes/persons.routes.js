@@ -16,6 +16,7 @@ const { encryptTc, hashTc } = require('../utils/tcCrypto');
 const { t } = require('../lang');
 const { displayName, displayNameHtml } = require('../utils/displayName');
 const { requireLogin } = require('../middleware/auth');
+const { requirePersonEditAccess, requireStandaloneCreateAccess } = require('../middleware/personAuthorization');
 
 const router = express.Router();
 
@@ -221,7 +222,7 @@ router.get('/api/ara', async (req, res) => {
 });
 
 // Yeni ekleme formu
-router.get('/new', requireLogin, async (req, res) => {
+router.get('/new', requireLogin, requireStandaloneCreateAccess, async (req, res) => {
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -260,7 +261,7 @@ function validateBase(body) {
 }
 
 // Yeni kayıt oluşturma
-router.post('/', requireLogin, async (req, res) => {
+router.post('/', requireLogin, requireStandaloneCreateAccess, async (req, res) => {
   const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
@@ -356,7 +357,7 @@ router.post('/', requireLogin, async (req, res) => {
 });
 
 // Düzenleme formu
-router.get('/:id/duzenle', requireLogin, async (req, res) => {
+router.get('/:id/duzenle', requireLogin, requirePersonEditAccess('id'), async (req, res) => {
   const person = await Person.findById(req.params.id).populate('familyGroupId');
 
   if (!person) {
@@ -431,7 +432,7 @@ router.get('/:id/duzenle', requireLogin, async (req, res) => {
 });
 
 // Güncelleme
-router.post('/:id', requireLogin, async (req, res) => {
+router.post('/:id', requireLogin, requirePersonEditAccess('id'), async (req, res) => {
   const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
@@ -539,7 +540,7 @@ router.post('/:id', requireLogin, async (req, res) => {
 });
 
 // Silme
-router.post('/:id/sil', requireLogin, async (req, res) => {
+router.post('/:id/sil', requireLogin, requirePersonEditAccess('id'), async (req, res) => {
   const person = await Person.findById(req.params.id);
   if (!person) {
     return res.redirect('/kisiler');

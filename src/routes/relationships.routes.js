@@ -8,11 +8,16 @@ const { computeSearchKey } = require('../utils/personSearch');
 const { t } = require('../lang');
 const { displayName } = require('../utils/displayName');
 const { requireLogin } = require('../middleware/auth');
+const { requirePersonEditAccess } = require('../middleware/personAuthorization');
 
 const router = express.Router();
 
-// Bu router'daki TÜM route'lar giriş gerektirir — akrabalık bağı kurma tamamen bir düzenleme işlemi.
+// Bu router'daki TÜM route'lar giriş VE anchor kişiyi (:id) düzenleme
+// yetkisi gerektirir — akrabalık bağı kurmak, o kişinin ilişkilerini
+// düzenlemek demektir. Path pattern'li router.use() kullanılıyor çünkü
+// path'siz router.use() req.params.id'yi henüz doldurmaz.
 router.use(requireLogin);
+router.use('/:id', requirePersonEditAccess('id'));
 
 const RELATION_LABELS = {
   father: 'Baba',

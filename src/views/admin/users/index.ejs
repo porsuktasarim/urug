@@ -1,0 +1,46 @@
+<%- include('../../partials/header', { title: 'Kullanıcılar', t }) %>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Kullanıcılar</h1>
+    <a href="/admin/kullanicilar/new" class="btn btn-primary">Yeni Kullanıcı</a>
+  </div>
+
+  <% if (usersWithRole.length === 0) { %>
+    <p class="text-muted">Kayıt bulunamadı.</p>
+  <% } else { %>
+    <div class="list-group">
+      <% usersWithRole.forEach(function (entry) { %>
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong><%= entry.user.username %></strong>
+            <% if (entry.membership) { %>
+              <span class="badge bg-secondary ms-2"><%= roleLabels[entry.membership.role] %></span>
+              <% if (entry.membership.role === 'familyAdmin' && entry.membership.familyGroupId) { %>
+                <span class="text-muted small ms-1">— <%= entry.membership.familyGroupId.name %></span>
+              <% } %>
+              <% if (entry.membership.role === 'member' && entry.membership.scopePersonId) { %>
+                <span class="text-muted small ms-1">— <%= displayName(entry.membership.scopePersonId) %> ve altsoyu</span>
+              <% } %>
+            <% } else { %>
+              <span class="badge bg-warning text-dark ms-2">rol atanmamış</span>
+            <% } %>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="/admin/kullanicilar/<%= entry.user._id %>/duzenle" class="btn btn-sm btn-outline-secondary">
+              <%= t('common.actions.edit') %>
+            </a>
+            <form action="/admin/kullanicilar/<%= entry.user._id %>/sil" method="POST"
+                  onsubmit="return confirm('<%= t('common.confirm.delete') %>');">
+              <button type="submit" class="btn btn-sm btn-outline-danger">
+                <%= t('common.actions.delete') %>
+              </button>
+            </form>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <a href="/" class="d-inline-block mt-3">&larr; Ana Sayfa</a>
+
+<%- include('../../partials/footer', { t }) %>

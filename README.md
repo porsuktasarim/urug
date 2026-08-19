@@ -2,30 +2,24 @@
 
 Self-hosted aile şeceresi uygulaması.
 
-## Durum (urug031 itibarıyla)
+## Durum (urug039 itibarıyla)
 
-**Tamamlanan (özet):**
-- Temel altyapı: Express/MongoDB/Docker, dil dosyası, ortak sayfa düzeni, oturum yönetimi (temel yetki modeli — herkes giriş yapınca her şeyi düzenleyebiliyor, ince taneli rol kapsamı henüz yok)
-- FamilyGroup: ad + slug + **renk kodu** (elle seçilebilir, seçilmezse benzersiz rastgele renk otomatik ve kalıcı atanır)
-- AttributeDefinition: admin kontrollü dinamik kişi özellikleri, çekirdek alanlar da dahil tek bir sıralı sistemden yönetiliyor
-- Person: ad, **göbek adı** (italik gösterim, resmi kayıtta olmayan ad), soyadı, doğum/ölüm tarihi (gün-ay-yıl + Hicri/Rumi/Miladi çevirici, 1926 öncesi M/H/R üçlü gösterim), cinsiyet, lakaplar, TC şifreleme, aile opsiyonel
-- Slug + alias mekanizması, arama (searchKey — doğum/evlilik soyadı/lakap/göbek adı dahil)
-- ParentChild (Baba/Anne/Çocuk, kaldırılabilir, cinsiyete göre otomatik taraf ataması, baba sülalesi otomatik miras), Union (Eş, çoklu evlilik, otomatik evlilik soyadı ataması)
-- Kişi profil sayfası: üst soy, alt soy (oğlu/kızı etiketli, yaş sıralı), eş, kardeşler
-- Kişiler listesi: lakap, tarih, eş, en büyük çocuk gösterimi
+**Yetki Modeli artık ince taneli:**
+- **globalAdmin**: her şeyi düzenler (kişi özellikleri, aileler, kullanıcılar dahil)
+- **familyAdmin**: sadece kendisine atanmış ailedeki kişileri düzenleyebilir
+- **member**: sadece kendisine atanmış kişiyi VE onun tüm altsoyunu (çocuk, torun...) düzenleyebilir
+- Yeni bağımsız kişi oluşturma (`/kisiler/new`) sadece globalAdmin + familyAdmin'e açık — üyeler akrabalık bağı üzerinden (Baba/Anne/Eş/Çocuk Ekle akışı) yeni kişi ekleyebilir, bu da o an düzenleme yetkisi olan "anchor" kişiye bağlı
+- **Aile yönetimi (`/aileler`) artık sadece globalAdmin'e açık** (önceden herhangi bir giriş yapmış kullanıcı yönetebiliyordu) — Kişi Özellikleri'yle tutarlı hale getirildi
+- **Yeni: Kullanıcı Yönetimi ekranı** (`/admin/kullanicilar`, globalAdmin) — kullanıcı oluşturma + rol/kapsam atama artık mümkün, ilk admin dışında kullanıcı ekleme yolu açıldı
 
-**Şimdi üzerinde çalışılıyor — Görsel Ağaç / Kart Tasarımı (fazlı):**
-1. ✅ Aile rengi (elle seçilebilir + otomatik fallback)
-2. ⏳ Kişi kartı (büyük, detaylı) + Ağaç kartı (küçük, özet) tasarımı
-3. ⏳ QR kod (kart → profil linki)
-4. ⏳ D3 ağaç render (yaşa göre soldan sağa, seçili kişi vurgulu, nesil derinliği seçilebilir)
-5. ⏳ Kart tıklayınca büyüme/detay açma etkileşimi
-6. ⏳ Genel görsel tema yenileme
+**Diğer tamamlanan işler (özet):** Temel altyapı, FamilyGroup (ad/slug/renk), AttributeDefinition (sıralanabilir çekirdek+özel alanlar), Person (göbek adı, doğum/ölüm tarihi + Hicri/Rumi/Miladi, TC şifreleme, aile opsiyonel, doğum/mezar yeri), slug+arama, ParentChild/Union ilişkileri (otomatik cinsiyet/sülale ataması), Kişi Kartı (QR kod, mini kartlar), **D3 ağaç render** (nesil derinliği seçilebilir, tıklayınca büyüyen kart), genel görsel tema (turuncu/adaçayı/krem/antrasit paleti).
 
-**Henüz yok:**
-- Yetki modelinin ince taneli hale getirilmesi (familyAdmin/member kapsamı) — bilinçli olarak görsel/ağaç işinden SONRAYA bırakıldı
-- Kişi/aile görseli yükleme
-- A0 rulo PDF export, ana sayfa özet blokları, RSS/XML, yedekleme
+**Sırada / bekleyen:**
+- Aile hikaye/açıklama alanı + foto galerisi
+- Kişi görseli yükleme
+- Bir referans siteye (tebakegenea.webflow.io) göre genel tema/yapı yenilenmesi — yukarıdaki iki madde bittikten sonra
+- Genel/tüm-kayıtlı-kişileri-gösteren ağaç görünümü (şu an sadece kişi bazlı odaklı ağaç var)
+- A0 rulo PDF export, ana sayfa özet blokları, RSS/XML, yedekleme sistemi
 
 ## Ortam Değişkenleri
 
@@ -34,11 +28,12 @@ MONGO_URI=mongodb://mongo:27017/urug
 TC_ENCRYPTION_KEY=<64 hex karakter>
 TC_HMAC_SECRET=<rastgele uzun metin>
 SESSION_SECRET=<rastgele uzun metin>
+BASE_URL=<opsiyonel, ör. https://secere.aile.com — QR kodların tam adres üretmesi için>
 ```
 
 ## İlk Kurulum
 
-`/kurulum-admin` adresinden ilk kullanıcıyı (otomatik global admin) oluştur.
+`/kurulum-admin` adresinden ilk kullanıcıyı (otomatik global admin) oluştur. Sonraki kullanıcıları `/admin/kullanicilar` üzerinden ekle.
 
 ## Yerelde Çalıştırma
 
