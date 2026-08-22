@@ -16,7 +16,8 @@ Self-hosted aile şeceresi uygulaması.
 **Ayarlar sayfası (`/ayarlar`, globalAdmin):** Kişi Özellikleri, Kullanıcılar, Roller ve Aileler yönetimi tek bir "Ayarlar" sayfası altında — üst menüde sadece bir dişli (gear) ikonuyla erişiliyor. Hesap göstergesi kişi ikonu + açılır menü (dropdown), Giriş/Çıkış da simge. Renk paleti: `#ff7f11` (turuncu, vurgu) / `#acbfa4` (adaçayı yeşili, ikincil) / `#e2e8ce` (krem, zemin) / `#262626` (antrasit, metin/navbar) — bkz. `src/public/css/theme.css`.
 
 **Yeni: Herkese açık aile sayfası + hikaye + foto galerisi (`/:familySlug`, ör. `/turkeli`):**
-- Aile düzenleme formuna (globalAdmin/aile admini, `canEditFamily` izni) **açıklama/hikaye** alanı ve **fotoğraf yükleme** (multer, gerçek dosya — sadece JPEG/PNG/WEBP/GIF, 8MB sınır, etiket+açıklama ile) eklendi
+- Aile düzenleme formuna (globalAdmin/aile admini, `canEditFamily` izni) **açıklama/hikaye** alanı ve **fotoğraf yükleme** (multer, gerçek dosya — sadece JPEG/PNG/WEBP/GIF, 15MB ham yükleme sınırı, etiket+açıklama ile) eklendi
+- **Yüklenen görseller otomatik sıkıştırılıp optimize ediliyor** (sharp): en uzun kenar max 1600px'e küçültülüyor (büyütme yapılmıyor), her zaman WebP'ye çevriliyor — orijinal büyük dosya hiç diske yazılmıyor, sadece optimize edilmiş hali kalıyor (kısıtlı disk alanı için önemli)
 - Yüklenen dosyalar `/app/uploads` altında, **kalıcı Docker volume**'de (`urug-uploads`) saklanıyor — container yeniden başlasa/deploy edilse de kaybolmuyor
 - Herkese açık `/:familySlug` sayfası: aile hikayesi, foto galerisi, aile bireyleri listesi (profil linkleriyle) gösteriyor
 - Aileler listesine "Görüntüle" linki eklendi

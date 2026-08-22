@@ -4,7 +4,7 @@ const path = require('path');
 const FamilyGroup = require('../models/FamilyGroup');
 const { slugify } = require('../utils/slugify');
 const { randomAestheticHexColor } = require('../utils/familyColor');
-const { familyPhotoUpload, FAMILY_PHOTOS_DIR } = require('../config/uploadStorage');
+const { familyPhotoUpload, processAndSaveImage, FAMILY_PHOTOS_DIR } = require('../config/uploadStorage');
 const { t } = require('../lang');
 const { requireLogin } = require('../middleware/auth');
 const { requireFamilyEditAccess, requireFamilyCreateAccess } = require('../middleware/personAuthorization');
@@ -124,13 +124,23 @@ router.post(
       return res.status(400).send('Dosya yüklenmedi.');
     }
 
+    // Ham buffer sıkıştırılıp/boyutlandırılıp (WebP, max 1600px) DİSKE
+    // BURADA yazılıyor — orijinal büyük dosya hiç diske inmiyor, kısıtlı
+    // alan için önemli (bkz. utils/uploadStorage.js).
+    let processed;
+    try {
+      processed = await processAndSaveImage(req.file.buffer, FAMILY_PHOTOS_DIR);
+    } catch (err) {
+      return res.status(400).send('Görsel işlenemedi: ' + err.message);
+    }
+
     const { caption, tags } = req.body;
     const tagList = tags
       ? tags.split(',').map((t2) => t2.trim()).filter(Boolean)
       : [];
 
     familyGroup.photos.push({
-      url: `/uploads/families/${req.file.filename}`,
+      url: `/uploads/families/${processed.filename}`,
       caption: caption && caption.trim() ? caption.trim() : null,
       tags: tagList,
       uploadedBy: req.session.userId,
