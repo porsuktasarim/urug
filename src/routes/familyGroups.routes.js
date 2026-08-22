@@ -1,7 +1,10 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const FamilyGroup = require('../models/FamilyGroup');
 const { slugify } = require('../utils/slugify');
 const { randomAestheticHexColor } = require('../utils/familyColor');
+const { familyPhotoUpload, FAMILY_PHOTOS_DIR } = require('../config/uploadStorage');
 const { t } = require('../lang');
 const { requireLogin } = require('../middleware/auth');
 const { requireFamilyEditAccess, requireFamilyCreateAccess } = require('../middleware/personAuthorization');
@@ -24,14 +27,14 @@ router.get('/new', requireLogin, requireFamilyCreateAccess, (req, res) => {
   res.render('family-groups/form', {
     t,
     familyGroup: null,
-    suggestedColor: randomAestheticHexColor(), // renk seçmezse bile boş kutuya bir öneri gelsin
+    suggestedColor: randomAestheticHexColor(),
     errorMessage: null,
   });
 });
 
 // Yeni kayıt oluşturma
 router.post('/', requireLogin, requireFamilyCreateAccess, async (req, res) => {
-  const { name, slug, colorCode } = req.body;
+  const { name, slug, colorCode, description } = req.body;
 
   try {
     const finalSlug = slug && slug.trim() ? slugify(slug) : slugify(name);
@@ -40,6 +43,7 @@ router.post('/', requireLogin, requireFamilyCreateAccess, async (req, res) => {
       name,
       slug: finalSlug,
       colorCode: colorCode && colorCode.trim() ? colorCode.trim() : null,
+      description: description && description.trim() ? description.trim() : null,
     });
     await familyGroup.save();
 
@@ -52,7 +56,7 @@ router.post('/', requireLogin, requireFamilyCreateAccess, async (req, res) => {
 
     res.status(400).render('family-groups/form', {
       t,
-      familyGroup: { name, slug, colorCode },
+      familyGroup: { name, slug, colorCode, description },
       suggestedColor: randomAestheticHexColor(),
       errorMessage,
     });
@@ -77,7 +81,7 @@ router.get('/:id/duzenle', requireLogin, requireFamilyEditAccess('id'), async (r
 
 // Güncelleme
 router.post('/:id', requireLogin, requireFamilyEditAccess('id'), async (req, res) => {
-  const { name, slug, colorCode } = req.body;
+  const { name, slug, colorCode, description } = req.body;
 
   try {
     const finalSlug = slug && slug.trim() ? slugify(slug) : slugify(name);
@@ -86,6 +90,7 @@ router.post('/:id', requireLogin, requireFamilyEditAccess('id'), async (req, res
       name,
       slug: finalSlug,
       colorCode: colorCode && colorCode.trim() ? colorCode.trim() : null,
+      description: description && description.trim() ? description.trim() : null,
     });
 
     res.redirect('/aileler');
@@ -97,11 +102,62 @@ router.post('/:id', requireLogin, requireFamilyEditAccess('id'), async (req, res
 
     res.status(400).render('family-groups/form', {
       t,
-      familyGroup: { _id: req.params.id, name, slug, colorCode },
+      familyGroup: { _id: req.params.id, name, slug, colorCode, description },
       suggestedColor: randomAestheticHexColor(),
       errorMessage,
     });
   }
+});
+
+// Fotoğraf yükleme
+router.post(
+  '/:id/foto-ekle',
+  requireLogin,
+  requireFamilyEditAccess('id'),
+  familyPhotoUpload.single('photo'),
+  async (req, res) => {
+    const familyGroup = await FamilyGroup.findById(req.params.id);
+    if (!familyGroup) {
+      return res.status(404).send('Aile bulunamadı.');
+    }
+    if (!req.file) {
+      return res.status(400).send('Dosya yüklenmedi.');
+    }
+
+    const { caption, tags } = req.body;
+    const tagList = tags
+      ? tags.split(',').map((t2) => t2.trim()).filter(Boolean)
+      : [];
+
+    familyGroup.photos.push({
+      url: `/uploads/families/${req.file.filename}`,
+      caption: caption && caption.trim() ? caption.trim() : null,
+      tags: tagList,
+      uploadedBy: req.session.userId,
+      uploadedAt: new Date(),
+    });
+
+    await familyGroup.save();
+    res.redirect(`/aileler/${familyGroup._id}/duzenle`);
+  }
+);
+
+// Fotoğraf silme
+router.post('/:id/foto-sil/:photoId', requireLogin, requireFamilyEditAccess('id'), async (req, res) => {
+  const familyGroup = await FamilyGroup.findById(req.params.id);
+  if (!familyGroup) {
+    return res.status(404).send('Aile bulunamadı.');
+  }
+
+  const photo = familyGroup.photos.id(req.params.photoId);
+  if (photo) {
+    const filePath = path.join(FAMILY_PHOTOS_DIR, path.basename(photo.url));
+    fs.unlink(filePath, () => {}); // dosya yoksa/silinemezse sessizce geç, kayıt zaten kaldırılacak
+    photo.deleteOne();
+    await familyGroup.save();
+  }
+
+  res.redirect(`/aileler/${familyGroup._id}/duzenle`);
 });
 
 // Silme

@@ -21,6 +21,7 @@ const userManagementRouter = require('./routes/userManagement.routes');
 const settingsRouter = require('./routes/settings.routes');
 const rolesRouter = require('./routes/roles.routes');
 const treeViewRouter = require('./routes/treeView.routes');
+const familyProfileRouter = require('./routes/familyProfile.routes');
 
 const app = express();
 const PORT = process.env.PORT || 1207;
@@ -28,6 +29,7 @@ const PORT = process.env.PORT || 1207;
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -71,6 +73,12 @@ app.use('/admin/roller', rolesRouter);
 app.use('/kisiler', personsRouter);
 app.use('/kisiler', relationshipsRouter);
 app.use('/kisiler', treeViewRouter);
+
+// ÖNEMLİ: Aile profil sayfası (/:familySlug — TEK segment) de tüm sabit
+// route'lardan SONRA mount edilmeli, aksi halde ör. bir aile slug'ı
+// "giris" gibi bir sabit route adıyla çakışabilirdi. Slug eşleşmezse
+// next() ile 404'e düşer, sabit route'lar önce eşleştiği için sorun olmaz.
+app.use('/', familyProfileRouter);
 
 // ÖNEMLİ: Bu route en son mount edilmeli — /:familySlug/:personSlug deseni
 // path segment sayısı bakımından diğer route'larla (ör. /aileler/new)

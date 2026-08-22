@@ -27,6 +27,21 @@ const familyGroupSchema = new mongoose.Schema(
       type: String, // hex renk, ör. "#3b82f6"
       default: null,
     },
+    description: {
+      type: String,
+      trim: true,
+      default: null,
+      // Aile hikayesi/açıklaması — herkese açık aile sayfasında (/:familySlug) görünür.
+    },
+    photos: [
+      {
+        url: { type: String, required: true }, // /uploads/families/<dosya> — bkz. routes/familyPhotos.routes.js
+        caption: { type: String, trim: true, default: null },
+        tags: [{ type: String, trim: true }],
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

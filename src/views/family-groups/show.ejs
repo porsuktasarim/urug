@@ -1,0 +1,48 @@
+<%- include('../partials/header', { title: familyGroup.name, t }) %>
+
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <% if (familyGroup.colorCode) { %>
+      <span class="d-inline-block rounded-circle" style="width:16px;height:16px;background-color:<%= familyGroup.colorCode %>;"></span>
+    <% } %>
+    <h1 class="h3 mb-0"><%= familyGroup.name %></h1>
+  </div>
+  <p class="text-muted"><%= members.length %> kayıtlı kişi</p>
+
+  <% if (familyGroup.description) { %>
+    <div class="mb-4" style="max-width: 680px; white-space: pre-line;"><%= familyGroup.description %></div>
+  <% } %>
+
+  <% if (familyGroup.photos && familyGroup.photos.length > 0) { %>
+    <h2 class="h6 text-muted mt-4">Fotoğraflar</h2>
+    <div class="d-flex flex-wrap gap-3 mb-4">
+      <% familyGroup.photos.forEach(function (photo) { %>
+        <div style="width: 160px;">
+          <img src="<%= photo.url %>" alt="<%= photo.caption || '' %>" class="img-fluid rounded border" style="height:120px;width:160px;object-fit:cover;">
+          <% if (photo.caption) { %>
+            <div class="small text-muted mt-1"><%= photo.caption %></div>
+          <% } %>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <h2 class="h6 text-muted mt-4">Aile Bireyleri</h2>
+  <% if (members.length === 0) { %>
+    <p class="text-muted">Henüz kayıtlı kişi yok.</p>
+  <% } else { %>
+    <div class="list-group" style="max-width: 480px;">
+      <% members.forEach(function (p) { %>
+        <% var url = personProfileUrl(p); %>
+        <% if (url) { %>
+          <a href="<%= url %>" class="list-group-item list-group-item-action">
+            <%- displayNameHtml(p) %>
+            <% if (p.birthYear) { %><span class="text-muted small ms-1">· <%= formatHistoricalYear(p.birthYear) %></span><% } %>
+          </a>
+        <% } else { %>
+          <div class="list-group-item"><%- displayNameHtml(p) %></div>
+        <% } %>
+      <% }); %>
+    </div>
+  <% } %>
+
+<%- include('../partials/footer', { t }) %>
