@@ -9,6 +9,48 @@
       <div class="alert alert-danger"><%= errorMessage %></div>
     <% } %>
 
+    <% if (person && person._id) { %>
+      <div class="mb-4 border rounded p-3">
+        <h2 class="h6 text-muted">Fotoğraf</h2>
+        <% if (person.photo) { %>
+          <div class="d-flex gap-3 align-items-start flex-wrap">
+            <img src="<%= person.photo %>" alt="" class="rounded border" style="width:120px;height:160px;object-fit:cover;">
+            <div>
+              <form action="/kisiler/<%= person._id %>/foto-sil" method="POST" class="mb-2"
+                    onsubmit="return confirm('Fotoğrafı kaldırmak istediğine emin misin?');">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Fotoğrafı Kaldır</button>
+              </form>
+
+              <% if (person.photoOriginal) { %>
+                <p class="text-muted small mb-1">Otomatik ortadan kırpıldı. Farklı bir alan seçmek istersen aşağıdaki görsel üzerinde kutuyu sürükle:</p>
+                <div id="cropContainer" style="position:relative; width:320px; max-width:100%; border:1px solid #ccc; overflow:hidden; touch-action:none;">
+                  <img id="cropOriginalImg" src="<%= person.photoOriginal %>" style="display:block; width:100%; user-select:none;" draggable="false">
+                  <div id="cropBox" style="position:absolute; border:2px solid #ff7f11; background:rgba(255,127,17,0.15); cursor:move;"></div>
+                </div>
+                <form action="/kisiler/<%= person._id %>/foto-kirp" method="POST" id="cropForm" class="mt-2">
+                  <input type="hidden" name="x" id="cropX">
+                  <input type="hidden" name="y" id="cropY">
+                  <input type="hidden" name="width" id="cropWidth">
+                  <input type="hidden" name="height" id="cropHeight">
+                  <button type="submit" class="btn btn-sm btn-primary">Bu Kırpmayı Kaydet</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        <% } else { %>
+          <p class="text-muted small">Henüz fotoğraf yok.</p>
+        <% } %>
+
+        <form action="/kisiler/<%= person._id %>/foto-ekle" method="POST" enctype="multipart/form-data" class="mt-3">
+          <label class="form-label small"><%= person.photo ? 'Fotoğrafı Değiştir' : 'Fotoğraf Yükle' %></label>
+          <div class="d-flex gap-2">
+            <input type="file" name="photo" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp,image/gif" required>
+            <button type="submit" class="btn btn-sm btn-primary">Yükle</button>
+          </div>
+        </form>
+      </div>
+    <% } %>
+
     <% // familyGroupId form'dan geldiğinde string, DB'den geldiğinde ObjectId/populate objesi olabilir %>
     <% var selectedFamilyId = person && person.familyGroupId
          ? (person.familyGroupId._id ? String(person.familyGroupId._id) : String(person.familyGroupId))
@@ -420,6 +462,110 @@
 
       setupDateField('birth');
       setupDateField('death');
+    })();
+  </script>
+
+  <script>
+    // Fotoğraf kırpma kutusu — sadece SÜRÜKLEME (yeniden boyutlandırma yok,
+    // basitlik için); kutu her zaman 3:4 oranında ve görselin merkezine
+    // otomatik yerleşir, kullanıcı sadece pozisyonunu değiştirebilir.
+    (function () {
+      var img = document.getElementById('cropOriginalImg');
+      var box = document.getElementById('cropBox');
+      var container = document.getElementById('cropContainer');
+      if (!img || !box || !container) return;
+
+      var ASPECT = 3 / 4; // genişlik/yükseklik
+      var naturalWidth, naturalHeight, scale;
+      var boxDisplayWidth, boxDisplayHeight;
+      var boxLeft, boxTop;
+      var dragging = false;
+      var dragStartX, dragStartY, boxStartLeft, boxStartTop;
+
+      function initBox() {
+        naturalWidth = img.naturalWidth;
+        naturalHeight = img.naturalHeight;
+        var displayWidth = img.clientWidth;
+        scale = naturalWidth / displayWidth;
+        var displayHeight = naturalHeight / scale;
+
+        // Kutunun ekran boyutu: görselin sığdığı en büyük 3:4 dikdörtgen.
+        if (displayWidth / displayHeight > ASPECT) {
+          boxDisplayHeight = displayHeight;
+          boxDisplayWidth = displayHeight * ASPECT;
+        } else {
+          boxDisplayWidth = displayWidth;
+          boxDisplayHeight = displayWidth / ASPECT;
+        }
+
+        boxLeft = (displayWidth - boxDisplayWidth) / 2;
+        boxTop = (displayHeight - boxDisplayHeight) / 2;
+        updateBoxStyle();
+      }
+
+      function updateBoxStyle() {
+        box.style.width = boxDisplayWidth + 'px';
+        box.style.height = boxDisplayHeight + 'px';
+        box.style.left = boxLeft + 'px';
+        box.style.top = boxTop + 'px';
+      }
+
+      function clampBox() {
+        var displayWidth = img.clientWidth;
+        var displayHeight = naturalHeight / scale;
+        boxLeft = Math.max(0, Math.min(boxLeft, displayWidth - boxDisplayWidth));
+        boxTop = Math.max(0, Math.min(boxTop, displayHeight - boxDisplayHeight));
+      }
+
+      function startDrag(clientX, clientY) {
+        dragging = true;
+        dragStartX = clientX;
+        dragStartY = clientY;
+        boxStartLeft = boxLeft;
+        boxStartTop = boxTop;
+      }
+
+      function moveDrag(clientX, clientY) {
+        if (!dragging) return;
+        boxLeft = boxStartLeft + (clientX - dragStartX);
+        boxTop = boxStartTop + (clientY - dragStartY);
+        clampBox();
+        updateBoxStyle();
+      }
+
+      function endDrag() { dragging = false; }
+
+      box.addEventListener('mousedown', function (e) { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+      document.addEventListener('mousemove', function (e) { moveDrag(e.clientX, e.clientY); });
+      document.addEventListener('mouseup', endDrag);
+
+      box.addEventListener('touchstart', function (e) {
+        var t = e.touches[0];
+        startDrag(t.clientX, t.clientY);
+      });
+      document.addEventListener('touchmove', function (e) {
+        if (!dragging) return;
+        var t = e.touches[0];
+        moveDrag(t.clientX, t.clientY);
+        e.preventDefault();
+      }, { passive: false });
+      document.addEventListener('touchend', endDrag);
+
+      if (img.complete && img.naturalWidth) {
+        initBox();
+      } else {
+        img.addEventListener('load', initBox);
+      }
+
+      var cropForm = document.getElementById('cropForm');
+      if (cropForm) {
+        cropForm.addEventListener('submit', function () {
+          document.getElementById('cropX').value = Math.round(boxLeft * scale);
+          document.getElementById('cropY').value = Math.round(boxTop * scale);
+          document.getElementById('cropWidth').value = Math.round(boxDisplayWidth * scale);
+          document.getElementById('cropHeight').value = Math.round(boxDisplayHeight * scale);
+        });
+      }
     })();
   </script>
 

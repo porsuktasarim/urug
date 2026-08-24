@@ -12,12 +12,15 @@ const { requireRelationshipManageAccess } = require('../middleware/personAuthori
 
 const router = express.Router();
 
-// Bu router'daki TÜM route'lar giriş VE anchor kişiyi (:id) düzenleme
-// yetkisi gerektirir — akrabalık bağı kurmak, o kişinin ilişkilerini
-// düzenlemek demektir. Path pattern'li router.use() kullanılıyor çünkü
-// path'siz router.use() req.params.id'yi henüz doldurmaz.
+// ÖNEMLİ: requireRelationshipManageAccess ARTIK blanket router.use('/:id', ...)
+// ile DEĞİL, her route'a AYRI AYRI uygulanıyor (aşağıda). Sebep: bu router
+// /kisiler prefix'inde BAŞKA router'larla (ör. personPhoto.routes.js) birlikte
+// mount ediliyor — blanket bir '/:id' middleware'i, o path deseniyle eşleşen
+// AMA bu router'da hiç tanımlı olmayan (ör. /:id/foto-ekle) istekleri de
+// yanlışlıkla yakalayıp yanlış izin türüyle reddedebiliyordu (gerçek Express
+// testiyle doğrulandı). Sadece requireLogin genel kalıyor (zararsız, her
+// router zaten kendi izin kontrolünü de yapıyor).
 router.use(requireLogin);
-router.use('/:id', requireRelationshipManageAccess('id'));
 
 const RELATION_LABELS = {
   father: 'Baba',
@@ -40,7 +43,7 @@ async function getSpousesOf(personId) {
 }
 
 // İlişki ekleme sayfası — arama-ve-seç + "sistemde yok, yeni ekle" seçeneği
-router.get('/:id/iliski-ekle', async (req, res) => {
+router.get('/:id/iliski-ekle', requireRelationshipManageAccess('id'), async (req, res) => {
   const { type } = req.query; // father | mother | child | spouse
 
   if (!RELATION_LABELS[type]) {
@@ -71,7 +74,7 @@ router.get('/:id/iliski-ekle', async (req, res) => {
 });
 
 // Var olan bir kişiyi seçip bağlama
-router.post('/:id/iliski-baglantisi', async (req, res) => {
+router.post('/:id/iliski-baglantisi', requireRelationshipManageAccess('id'), async (req, res) => {
   const { type, selectedPersonId, parentSide, anchorGender, otherGender, otherParentId } = req.body;
   const anchorId = req.params.id;
 
@@ -101,7 +104,7 @@ router.post('/:id/iliski-baglantisi', async (req, res) => {
 });
 
 // Sistemde olmayan yeni bir kişi oluşturup aynı anda bağlama
-router.post('/:id/iliski-yeni-kisi', async (req, res) => {
+router.post('/:id/iliski-yeni-kisi', requireRelationshipManageAccess('id'), async (req, res) => {
   const {
     type, officialFirstName, officialLastName, hasNoLastName, birthYear,
     familyGroupId, parentSide, gender, anchorGender, otherParentId, personalNickname,
@@ -344,7 +347,7 @@ async function linkSpouse(anchorId, otherPersonId, anchorGenderOverride, otherGe
 }
 
 // Ebeveyn bağını kaldır (yanlış taraf girildiyse: kaldır, doğru tarafla yeniden ekle)
-router.post('/:id/iliski-kaldir/ebeveyn/:parentSide', async (req, res) => {
+router.post('/:id/iliski-kaldir/ebeveyn/:parentSide', requireRelationshipManageAccess('id'), async (req, res) => {
   const { id, parentSide } = req.params;
 
   if (parentSide !== 'father' && parentSide !== 'mother') {
@@ -356,7 +359,7 @@ router.post('/:id/iliski-kaldir/ebeveyn/:parentSide', async (req, res) => {
 });
 
 // Çocuk bağını kaldır
-router.post('/:id/iliski-kaldir/cocuk/:childId', async (req, res) => {
+router.post('/:id/iliski-kaldir/cocuk/:childId', requireRelationshipManageAccess('id'), async (req, res) => {
   const { id, childId } = req.params;
 
   await ParentChild.findOneAndDelete({ parentId: id, childId });
@@ -364,7 +367,7 @@ router.post('/:id/iliski-kaldir/cocuk/:childId', async (req, res) => {
 });
 
 // Eş bağını kaldır
-router.post('/:id/iliski-kaldir/es/:spouseId', async (req, res) => {
+router.post('/:id/iliski-kaldir/es/:spouseId', requireRelationshipManageAccess('id'), async (req, res) => {
   const { id, spouseId } = req.params;
 
   await Union.findOneAndDelete({

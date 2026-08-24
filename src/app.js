@@ -15,6 +15,7 @@ const familyGroupsRouter = require('./routes/familyGroups.routes');
 const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
 const personsRouter = require('./routes/persons.routes');
 const relationshipsRouter = require('./routes/relationships.routes');
+const personPhotoRouter = require('./routes/personPhoto.routes');
 const personProfileRouter = require('./routes/personProfile.routes');
 const authRouter = require('./routes/auth.routes');
 const userManagementRouter = require('./routes/userManagement.routes');
@@ -72,6 +73,7 @@ app.use('/ayarlar', settingsRouter);
 app.use('/admin/roller', rolesRouter);
 app.use('/kisiler', personsRouter);
 app.use('/kisiler', relationshipsRouter);
+app.use('/kisiler', personPhotoRouter);
 app.use('/kisiler', treeViewRouter);
 
 // ÖNEMLİ: Aile profil sayfası (/:familySlug — TEK segment) de tüm sabit

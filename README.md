@@ -22,8 +22,13 @@ Self-hosted aile şeceresi uygulaması.
 - Herkese açık `/:familySlug` sayfası: aile hikayesi, foto galerisi, aile bireyleri listesi (profil linkleriyle) gösteriyor
 - Aileler listesine "Görüntüle" linki eklendi
 
+**Yeni: Kişi görseli (vesikalık) yükleme:**
+- `Person.photo` (sabit 480×640 vesikalık), `photoOriginal` (kırpılmamış, sadece sıkıştırılmış), `photoCropData` eklendi
+- Yükleme: sharp ile otomatik **ortadan 3:4 oranında kırpma** + sabit boyuta getirme + WebP sıkıştırma — orijinal de ayrıca (max 2000px, sıkıştırılmış) saklanıyor
+- **Elle kırpma**: kişi düzenleme formunda orijinal görsel üzerinde sürüklenebilir bir kutu ile farklı bir alan seçilebiliyor, orijinale dokunmadan sadece vesikalık yeniden üretiliyor
+- **Kritik bug düzeltmesi:** `relationships.routes.js` ve `personPhoto.routes.js`'teki `router.use('/:id', ...)` blanket yetki kontrolleri, aynı `/kisiler` prefix'inde mount edilmiş DİĞER router'ların route'larını da (ör. herkese açık olması gereken ağaç görüntüleme sayfasını) yanlışlıkla engelliyordu — gerçek Express testleriyle bulunup düzeltildi, artık her route kendi izin kontrolünü ayrı ayrı uyguluyor
+
 **Sırada / bekleyen:**
-- Kişi görseli yükleme
 - Bir referans siteye (tebakegenea.webflow.io) göre genel tema/yapı yenilenmesi
 - Genel/tüm-kayıtlı-kişileri-gösteren ağaç görünümü (şu an sadece kişi bazlı odaklı ağaç var)
 - A0 rulo PDF export, ana sayfa özet blokları, RSS/XML, yedekleme sistemi

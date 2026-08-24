@@ -75,6 +75,21 @@ const personSchema = new mongoose.Schema(
 
     burialPlace: { type: String, trim: true, default: null }, // mezarının yeri
 
+    // Kişi görseli (vesikalık). photo: sabit boyuta kırpılmış/sıkıştırılmış
+    // gösterim hali (bkz. config/personPhotoStorage.js). photoOriginal:
+    // kırpılmamış, sadece sıkıştırılmış orijinal — kırpmayı sonradan
+    // değiştirebilmek için saklanıyor. photoCropData: uygulanan kırpma
+    // dikdörtgeni (orijinal görselin piksel koordinatlarında), kırpma
+    // arayüzünde mevcut seçimi göstermek için.
+    photo: { type: String, default: null },
+    photoOriginal: { type: String, default: null },
+    photoCropData: {
+      x: { type: Number, default: null },
+      y: { type: Number, default: null },
+      width: { type: Number, default: null },
+      height: { type: Number, default: null },
+    },
+
     deathYear: { type: Number, default: null }, // her zaman Miladi
     deathDay: { type: Number, default: null, min: 1, max: 31 },
     deathMonth: { type: Number, default: null, min: 1, max: 12 },
