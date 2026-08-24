@@ -15,15 +15,54 @@
   <% if (familyGroup.photos && familyGroup.photos.length > 0) { %>
     <h2 class="h6 text-muted mt-4">Fotoğraflar</h2>
     <div class="d-flex flex-wrap gap-3 mb-4">
-      <% familyGroup.photos.forEach(function (photo) { %>
+      <% familyGroup.photos.forEach(function (photo, index) { %>
         <div style="width: 160px;">
-          <img src="<%= photo.url %>" alt="<%= photo.caption || '' %>" class="img-fluid rounded border" style="height:120px;width:160px;object-fit:cover;">
+          <img src="<%= photo.url %>" alt="<%= photo.caption || '' %>" class="img-fluid rounded border" style="height:120px;width:160px;object-fit:cover; cursor:pointer;"
+               onclick="openLightbox(<%= index %>)">
           <% if (photo.caption) { %>
             <div class="small text-muted mt-1"><%= photo.caption %></div>
+          <% } %>
+          <% if (photo.tags && photo.tags.length > 0) { %>
+            <div class="mt-1">
+              <% photo.tags.forEach(function (tag) { %>
+                <span class="badge bg-light text-muted border" style="font-size:0.65rem;"><%= tag %></span>
+              <% }); %>
+            </div>
           <% } %>
         </div>
       <% }); %>
     </div>
+
+    <!-- Lightbox — tıklanan fotoğrafı büyük gösterir -->
+    <div id="lightboxOverlay" class="d-none" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1050; align-items:center; justify-content:center; flex-direction:column;"
+         onclick="closeLightbox(event)">
+      <img id="lightboxImg" src="" style="max-width:90vw; max-height:80vh; object-fit:contain;">
+      <div id="lightboxCaption" class="text-white mt-2"></div>
+      <button type="button" class="btn btn-outline-light btn-sm mt-3" onclick="closeLightbox(event)">Kapat</button>
+    </div>
+
+    <script>
+      var lightboxPhotos = <%- JSON.stringify(familyGroup.photos.map(function (p) { return { url: p.url, caption: p.caption, tags: p.tags }; })) %>;
+
+      function openLightbox(index) {
+        var photo = lightboxPhotos[index];
+        if (!photo) return;
+        document.getElementById('lightboxImg').src = photo.url;
+        var captionParts = [];
+        if (photo.caption) captionParts.push(photo.caption);
+        if (photo.tags && photo.tags.length > 0) captionParts.push(photo.tags.join(', '));
+        document.getElementById('lightboxCaption').textContent = captionParts.join(' — ');
+        document.getElementById('lightboxOverlay').classList.remove('d-none');
+        document.getElementById('lightboxOverlay').style.display = 'flex';
+      }
+
+      function closeLightbox(event) {
+        // Sadece görselin kendisine değil de dış alana/kapat butonuna tıklanınca kapat
+        if (event.target.id === 'lightboxImg') return;
+        document.getElementById('lightboxOverlay').classList.add('d-none');
+        document.getElementById('lightboxOverlay').style.display = 'none';
+      }
+    </script>
   <% } %>
 
   <h2 class="h6 text-muted mt-4">Aile Bireyleri</h2>

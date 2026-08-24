@@ -170,6 +170,24 @@ router.post('/:id/foto-sil/:photoId', requireLogin, requireFamilyEditAccess('id'
   res.redirect(`/aileler/${familyGroup._id}/duzenle`);
 });
 
+// Fotoğraf düzenleme — sonradan açıklama/etiket değiştirme (dosyaya dokunmaz).
+router.post('/:id/foto-duzenle/:photoId', requireLogin, requireFamilyEditAccess('id'), async (req, res) => {
+  const familyGroup = await FamilyGroup.findById(req.params.id);
+  if (!familyGroup) {
+    return res.status(404).send('Aile bulunamadı.');
+  }
+
+  const photo = familyGroup.photos.id(req.params.photoId);
+  if (photo) {
+    const { caption, tags } = req.body;
+    photo.caption = caption && caption.trim() ? caption.trim() : null;
+    photo.tags = tags ? tags.split(',').map((t2) => t2.trim()).filter(Boolean) : [];
+    await familyGroup.save();
+  }
+
+  res.redirect(`/aileler/${familyGroup._id}/duzenle`);
+});
+
 // Silme
 router.post('/:id/sil', requireLogin, requireFamilyEditAccess('id'), async (req, res) => {
   await FamilyGroup.findByIdAndDelete(req.params.id);

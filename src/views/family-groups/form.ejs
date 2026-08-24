@@ -51,8 +51,9 @@
       <% if (familyGroup.photos && familyGroup.photos.length > 0) { %>
         <div class="d-flex flex-wrap gap-3 mb-3">
           <% familyGroup.photos.forEach(function (photo) { %>
-            <div style="width: 140px;">
-              <img src="<%= photo.url %>" alt="<%= photo.caption || '' %>" class="img-fluid rounded border mb-1" style="height:100px;width:140px;object-fit:cover;">
+            <div style="width: 160px;">
+              <img src="<%= photo.url %>" alt="<%= photo.caption || '' %>" class="img-fluid rounded border mb-1" style="height:100px;width:160px;object-fit:cover; cursor:pointer;"
+                   onclick="document.getElementById('editPhoto_<%= photo._id %>').classList.toggle('d-none');">
               <% if (photo.caption) { %>
                 <div class="small text-muted"><%= photo.caption %></div>
               <% } %>
@@ -63,9 +64,21 @@
                   <% }); %>
                 </div>
               <% } %>
-              <form action="/aileler/<%= familyGroup._id %>/foto-sil/<%= photo._id %>" method="POST"
-                    onsubmit="return confirm('<%= t('common.confirm.delete') %>');">
-                <button type="submit" class="btn btn-sm btn-outline-danger w-100">Sil</button>
+              <div class="d-flex gap-1 mb-1">
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-fill"
+                        onclick="document.getElementById('editPhoto_<%= photo._id %>').classList.toggle('d-none');">
+                  Düzenle
+                </button>
+                <form action="/aileler/<%= familyGroup._id %>/foto-sil/<%= photo._id %>" method="POST" class="flex-fill"
+                      onsubmit="return confirm('<%= t('common.confirm.delete') %>');">
+                  <button type="submit" class="btn btn-sm btn-outline-danger w-100">Sil</button>
+                </form>
+              </div>
+
+              <form id="editPhoto_<%= photo._id %>" action="/aileler/<%= familyGroup._id %>/foto-duzenle/<%= photo._id %>" method="POST" class="d-none border rounded p-2 mb-1">
+                <input type="text" name="caption" class="form-control form-control-sm mb-1" placeholder="Açıklama" value="<%= photo.caption || '' %>">
+                <input type="text" name="tags" class="form-control form-control-sm mb-1" placeholder="Etiketler (virgülle)" value="<%= photo.tags ? photo.tags.join(', ') : '' %>">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Kaydet</button>
               </form>
             </div>
           <% }); %>
