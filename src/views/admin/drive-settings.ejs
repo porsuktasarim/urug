@@ -1,0 +1,42 @@
+<%- include('../partials/header', { title: 'Google Drive', t }) %>
+
+  <div style="max-width: 480px;">
+    <h1 class="h4 mb-4">Google Drive Bağlantısı</h1>
+
+    <% if (errorMessage) { %>
+      <div class="alert alert-danger"><%= errorMessage %></div>
+    <% } %>
+
+    <p class="text-muted small">
+      Bağlandığında, aile ve kişi fotoğrafları yerel diske değil doğrudan Google Drive'a
+      ("Uruğ Yüklemeleri" klasörüne) yüklenir — VPS disk alanını kullanmaz.
+      Sadece uygulamanın oluşturduğu dosyalara erişim istenir, Drive'ının tamamına değil.
+    </p>
+
+    <% if (config && config.connected) { %>
+      <div class="alert alert-success">
+        <strong>Bağlı</strong><br>
+        <% if (config.driveAccountEmail) { %>Hesap: <%= config.driveAccountEmail %><br><% } %>
+        <% if (config.connectedByUsername) { %>Bağlayan: <%= config.connectedByUsername %><% } %>
+      </div>
+      <form action="/ayarlar/drive/baglantiyi-kes" method="POST"
+            onsubmit="return confirm('Bağlantıyı kesersen yeni yüklemeler tekrar yerel diske yapılır. Emin misin?');">
+        <button type="submit" class="btn btn-outline-danger">Bağlantıyı Kes</button>
+      </form>
+    <% } else { %>
+      <div class="alert alert-secondary">Şu an bağlı değil — fotoğraflar yerel diske yükleniyor.</div>
+      <a href="/ayarlar/drive/baglan" class="btn btn-primary">Google Drive'a Bağlan</a>
+    <% } %>
+
+    <hr class="my-4">
+    <p class="text-muted small">
+      Bağlantı için önce <code>.env</code> / Coolify ortam değişkenlerinde
+      <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>,
+      <code>GOOGLE_REDIRECT_URI</code> tanımlı olmalı (Google Cloud Console'dan
+      OAuth istemci kimliği oluşturularak alınır).
+    </p>
+  </div>
+
+  <a href="/ayarlar" class="d-inline-block mt-3">&larr; Ayarlar</a>
+
+<%- include('../partials/footer', { t }) %>

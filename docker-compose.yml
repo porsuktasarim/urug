@@ -12,6 +12,9 @@ services:
       - TC_HMAC_SECRET=${TC_HMAC_SECRET}
       - SESSION_SECRET=${SESSION_SECRET}
       - BASE_URL=${BASE_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
     volumes:
       - urug-uploads:/app/uploads
     depends_on:

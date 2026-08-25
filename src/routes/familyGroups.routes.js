@@ -1,10 +1,9 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const FamilyGroup = require('../models/FamilyGroup');
 const { slugify } = require('../utils/slugify');
 const { randomAestheticHexColor } = require('../utils/familyColor');
 const { familyPhotoUpload, processAndSaveImage, FAMILY_PHOTOS_DIR } = require('../config/uploadStorage');
+const { deleteStoredImage } = require('../utils/imageStorageRouter');
 const { t } = require('../lang');
 const { requireLogin } = require('../middleware/auth');
 const { requireFamilyEditAccess, requireFamilyCreateAccess } = require('../middleware/personAuthorization');
@@ -140,7 +139,7 @@ router.post(
       : [];
 
     familyGroup.photos.push({
-      url: `/uploads/families/${processed.filename}`,
+      url: processed.url,
       caption: caption && caption.trim() ? caption.trim() : null,
       tags: tagList,
       uploadedBy: req.session.userId,
@@ -161,8 +160,7 @@ router.post('/:id/foto-sil/:photoId', requireLogin, requireFamilyEditAccess('id'
 
   const photo = familyGroup.photos.id(req.params.photoId);
   if (photo) {
-    const filePath = path.join(FAMILY_PHOTOS_DIR, path.basename(photo.url));
-    fs.unlink(filePath, () => {}); // dosya yoksa/silinemezse sessizce geç, kayıt zaten kaldırılacak
+    await deleteStoredImage(photo.url); // Drive'daysa Drive'dan, yerelse diskten siler
     photo.deleteOne();
     await familyGroup.save();
   }

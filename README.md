@@ -28,7 +28,17 @@ Self-hosted aile şeceresi uygulaması.
 - **Elle kırpma**: kişi düzenleme formunda orijinal görsel üzerinde sürüklenebilir bir kutu ile farklı bir alan seçilebiliyor, orijinale dokunmadan sadece vesikalık yeniden üretiliyor
 - **Kritik bug düzeltmesi:** `relationships.routes.js` ve `personPhoto.routes.js`'teki `router.use('/:id', ...)` blanket yetki kontrolleri, aynı `/kisiler` prefix'inde mount edilmiş DİĞER router'ların route'larını da (ör. herkese açık olması gereken ağaç görüntüleme sayfasını) yanlışlıkla engelliyordu — gerçek Express testleriyle bulunup düzeltildi, artık her route kendi izin kontrolünü ayrı ayrı uyguluyor
 
+**Yeni: Google Drive'a fotoğraf yükleme (opsiyonel):**
+- `/ayarlar/drive` (globalAdmin) — Google hesabına OAuth2 ile bağlanma (en dar kapsam: `drive.file`, sadece bu uygulamanın oluşturduğu dosyalara erişim)
+- Bağlıyken TÜM yeni fotoğraf yüklemeleri (aile fotoğrafları) yerel diske değil doğrudan Drive'daki "Uruğ Yüklemeleri" klasörüne gidiyor — VPS disk alanını hiç kullanmıyor
+- Görüntülerken Drive linki hiç istemciye verilmiyor — kendi sunucumuz Drive'dan çekip **proxy** ile akıtıyor (`/uploads/drive/:fileId`), böylece dosyaların "herkese açık" paylaşılmasına gerek kalmıyor
+- Bağlı DEĞİLSE otomatik olarak yerel diske düşüyor (mevcut davranış, hiçbir şey bozulmuyor)
+- Refresh token AES-256-GCM ile şifreli saklanıyor (TC şifrelemesiyle aynı mekanizma)
+- **Kurulum gerektiriyor:** Google Cloud Console'dan bir OAuth istemci kimliği oluşturup `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` ortam değişkenlerini eklemen lazım — detaylar `.env.example`'da
+- Not: Kişi fotoğrafları (vesikalık) henüz bu sisteme bağlanmadı, sadece aile fotoğrafları — sıradaki küçük bir adım
+
 **Sırada / bekleyen:**
+- **Fotoğraf üzerinde kişi etiketleme** (Facebook tarzı — görsele tıklayınca o noktada arama-ve-seç ile bir Person'a bağlama, `personTags: [{ personId, x, y }]` yüzde bazlı koordinat, görüntülerken hover/tıklayınca isim+profil linki). Not: mevcut serbest-metin `tags` alanı (ör. "düğün", "1980ler") bununla KARIŞTIRILMAMALI — o photo'nun genel etiketi, bu ise görseldeki BELİRLİ BİR KİŞİYİ işaretleme.
 - Bir referans siteye (tebakegenea.webflow.io) göre genel tema/yapı yenilenmesi
 - Genel/tüm-kayıtlı-kişileri-gösteren ağaç görünümü (şu an sadece kişi bazlı odaklı ağaç var)
 - A0 rulo PDF export, ana sayfa özet blokları, RSS/XML, yedekleme sistemi
