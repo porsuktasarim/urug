@@ -146,6 +146,25 @@ async function isDriveConnected() {
   return !!(config && config.connected);
 }
 
+/**
+ * "Bağlı olmak" ile "görseller için kullanılıyor olmak" AYRI şeylerdir —
+ * kullanıcı bağlanıp sadece yedekler için (ya da hiçbiri için, ileride
+ * lazım olur diye) kullanmayı seçebilir. Görsel yükleme akışları bu
+ * fonksiyonu kullanmalı, isDriveConnected()'ı DEĞİL.
+ */
+async function isDriveEnabledForImages() {
+  const config = await DriveConfig.findOne();
+  return !!(config && config.connected && config.useForImages);
+}
+
+/**
+ * Yedekleme sistemi (gelecek adım) bu fonksiyonu kullanacak.
+ */
+async function isDriveEnabledForBackups() {
+  const config = await DriveConfig.findOne();
+  return !!(config && config.connected && config.useForBackups);
+}
+
 async function disconnectDrive() {
   const config = await DriveConfig.findOne();
   if (config) {
@@ -163,5 +182,7 @@ module.exports = {
   getDriveFileStream,
   deleteDriveFile,
   isDriveConnected,
+  isDriveEnabledForImages,
+  isDriveEnabledForBackups,
   disconnectDrive,
 };

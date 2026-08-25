@@ -30,7 +30,8 @@ Self-hosted aile şeceresi uygulaması.
 
 **Yeni: Google Drive'a fotoğraf yükleme (opsiyonel):**
 - `/ayarlar/drive` (globalAdmin) — Google hesabına OAuth2 ile bağlanma (en dar kapsam: `drive.file`, sadece bu uygulamanın oluşturduğu dosyalara erişim)
-- Bağlıyken TÜM yeni fotoğraf yüklemeleri (aile fotoğrafları) yerel diske değil doğrudan Drive'daki "Uruğ Yüklemeleri" klasörüne gidiyor — VPS disk alanını hiç kullanmıyor
+- **Bağlı olmak ≠ kullanılıyor olmak** — bağlandıktan sonra "Fotoğraf yüklemeleri" ve "Yedekleme" için ayrı ayrı açıp kapatabiliyorsun (`useForImages`/`useForBackups`). Sadece bağlayıp ikisini de kapalı bırakmak da mümkün ("ileride lazım olur" senaryosu)
+- "Fotoğraf yüklemeleri" açıksa yeni yüklenen fotoğraflar (şu an sadece aile fotoğrafları) Drive'daki "Uruğ Yüklemeleri" klasörüne gidiyor, kapalıysa/bağlı değilse otomatik yerel diske düşüyor
 - Görüntülerken Drive linki hiç istemciye verilmiyor — kendi sunucumuz Drive'dan çekip **proxy** ile akıtıyor (`/uploads/drive/:fileId`), böylece dosyaların "herkese açık" paylaşılmasına gerek kalmıyor
 - Bağlı DEĞİLSE otomatik olarak yerel diske düşüyor (mevcut davranış, hiçbir şey bozulmuyor)
 - Refresh token AES-256-GCM ile şifreli saklanıyor (TC şifrelemesiyle aynı mekanizma)

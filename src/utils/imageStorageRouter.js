@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { isDriveConnected, uploadBufferToDrive, deleteDriveFile } = require('./googleDrive');
+const { isDriveEnabledForImages, uploadBufferToDrive, deleteDriveFile } = require('./googleDrive');
 
 const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 
@@ -18,9 +18,9 @@ const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
  * @param {string} localDir - Drive bağlı değilse yazılacak yerel klasör
  */
 async function storeImageBuffer(buffer, filename, localDir) {
-  const connected = await isDriveConnected();
+  const useDrive = await isDriveEnabledForImages();
 
-  if (connected) {
+  if (useDrive) {
     const fileId = await uploadBufferToDrive(buffer, filename, 'image/webp');
     return `/uploads/drive/${fileId}`;
   }

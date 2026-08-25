@@ -51,4 +51,20 @@ router.post('/baglantiyi-kes', async (req, res) => {
   res.redirect('/ayarlar/drive');
 });
 
+// Bağlı olmak ile kullanılıyor olmak ayrı — kullanıcı bağlansa bile
+// sadece görseller/sadece yedekler/ikisi de/hiçbiri (ileride lazım olur
+// diye) seçebilir.
+router.post('/kullanim-ayarlari', async (req, res) => {
+  const config = await DriveConfig.findOne();
+  if (!config || !config.connected) {
+    return res.status(400).send('Önce Google Drive\'a bağlanmalısın.');
+  }
+
+  config.useForImages = req.body.useForImages === 'on';
+  config.useForBackups = req.body.useForBackups === 'on';
+  await config.save();
+
+  res.redirect('/ayarlar/drive');
+});
+
 module.exports = router;

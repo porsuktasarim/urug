@@ -15,6 +15,12 @@ const driveConfigSchema = new mongoose.Schema(
     refreshTokenEncrypted: { type: String, default: null },
     driveAccountEmail: { type: String, default: null }, // bağlı Google hesabının e-postası (bilgi amaçlı)
     uploadsFolderId: { type: String, default: null }, // Drive'da oluşturulan "Uruğ Yüklemeleri" klasörünün id'si
+
+    // Bağlı olmak, kullanılıyor olmak anlamına gelmez — kullanıcı sadece
+    // "ileride lazım olur" diye bağlayıp ikisini de kapalı bırakabilir,
+    // ya da sadece birini açabilir. Her ikisi de bağımsız birer anahtar.
+    useForImages: { type: Boolean, default: false }, // yeni fotoğraf yüklemeleri Drive'a mı gitsin
+    useForBackups: { type: Boolean, default: false }, // yedekleme sistemi Drive'ı hedef olarak kullansın mı (bkz. gelecek "yedekleme" adımı)
   },
   { timestamps: true }
 );
