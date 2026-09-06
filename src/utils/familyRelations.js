@@ -24,29 +24,51 @@ function childRelationLabel(child) {
 }
 
 /**
- * Bir kişinin kardeşlerini bulur: aynı babaya VEYA aynı anneye bağlı,
- * kendisi hariç tüm diğer çocuklar (tekrarsız). Baba/anne bilinmiyorsa
- * boş dizi döner (kardeş hesaplanamaz).
+ * Bir kişinin kardeşlerini bulur — İKİ kaynaktan birleştirilir:
+ *   1) Ortak ebeveyn üzerinden hesaplanan (aynı babaya VEYA aynı anneye
+ *      bağlı) kardeşler. Ebeveyn bilinmiyorsa bu kaynak boş kalır.
+ *   2) Ebeveyn bilinmese de doğrudan "kardeş" olarak işaretlenmiş
+ *      SiblingLink kayıtları (bkz. models/SiblingLink.js).
+ * İki kaynaktan gelen sonuçlar tekrarsız (aynı kişi iki kez görünmez)
+ * birleştirilir.
  */
-async function getSiblings(ParentChildModel, personId, fatherId, motherId) {
-  const parentIds = [fatherId, motherId].filter(Boolean);
-  if (parentIds.length === 0) return [];
-
-  const links = await ParentChildModel.find({
-    parentId: { $in: parentIds },
-    childId: { $ne: personId },
-  }).populate({ path: 'childId', populate: { path: 'familyGroupId' } });
-
+async function getSiblings(ParentChildModel, personId, fatherId, motherId, SiblingLinkModel) {
   const seen = new Set();
   const siblings = [];
 
-  links.forEach((link) => {
-    const id = String(link.childId._id);
-    if (!seen.has(id)) {
-      seen.add(id);
-      siblings.push(link.childId);
-    }
-  });
+  const parentIds = [fatherId, motherId].filter(Boolean);
+  if (parentIds.length > 0) {
+    const links = await ParentChildModel.find({
+      parentId: { $in: parentIds },
+      childId: { $ne: personId },
+    }).populate({ path: 'childId', populate: { path: 'familyGroupId' } });
+
+    links.forEach((link) => {
+      const id = String(link.childId._id);
+      if (!seen.has(id)) {
+        seen.add(id);
+        siblings.push(link.childId);
+      }
+    });
+  }
+
+  if (SiblingLinkModel) {
+    const directLinks = await SiblingLinkModel.find({
+      $or: [{ personAId: personId }, { personBId: personId }],
+    }).populate([
+      { path: 'personAId', populate: { path: 'familyGroupId' } },
+      { path: 'personBId', populate: { path: 'familyGroupId' } },
+    ]);
+
+    directLinks.forEach((link) => {
+      const other = String(link.personAId._id) === String(personId) ? link.personBId : link.personAId;
+      const id = String(other._id);
+      if (!seen.has(id)) {
+        seen.add(id);
+        siblings.push(other);
+      }
+    });
+  }
 
   return siblings;
 }

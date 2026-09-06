@@ -2,6 +2,7 @@ const express = require('express');
 const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const ParentChild = require('../models/ParentChild');
+const SiblingLink = require('../models/SiblingLink');
 const Union = require('../models/Union');
 const { t } = require('../lang');
 const { formatHistoricalYear } = require('../utils/historicalDateDisplay');
@@ -47,7 +48,8 @@ async function renderProfile(res, person) {
     ParentChild,
     person._id,
     fatherPerson ? fatherPerson._id : null,
-    motherPerson ? motherPerson._id : null
+    motherPerson ? motherPerson._id : null,
+    SiblingLink
   );
 
   const ownProfileUrl = personProfileUrl(person);

@@ -353,14 +353,23 @@
       <div class="mb-2">
         <strong>Kardeşler:</strong>
         <% if (typeof siblings !== 'undefined' && siblings.length > 0) { %>
-          <ul class="mb-1">
+          <ul class="mb-1 list-unstyled">
             <% siblings.forEach(function (s) { %>
-              <li><%= displayName(s) %><% if (s.birthYear) { %> <span class="text-muted small">(<%= s.birthYear %>)</span><% } %></li>
+              <li class="mb-1">
+                <%= displayName(s) %><% if (s.birthYear) { %> <span class="text-muted small">(<%= s.birthYear %>)</span><% } %>
+                <form action="/kisiler/<%= person._id %>/iliski-kaldir/kardes/<%= s._id %>" method="POST" class="d-inline"
+                      onsubmit="return confirm('Bu kardeşlik bağını kaldırmak istediğine emin misin?');">
+                  <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Kaldır</button>
+                </form>
+              </li>
             <% }); %>
           </ul>
         <% } else { %>
           <span class="text-muted d-block mb-1">yok</span>
         <% } %>
+        <a href="/kisiler/<%= person._id %>/iliski-ekle?type=sibling" class="btn btn-sm btn-outline-secondary">
+          Kardeş Ekle <span class="text-muted">(ebeveyn bilinmeden)</span>
+        </a>
       </div>
 
       <div class="mb-2">

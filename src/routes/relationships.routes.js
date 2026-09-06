@@ -3,6 +3,7 @@ const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const ParentChild = require('../models/ParentChild');
 const Union = require('../models/Union');
+const SiblingLink = require('../models/SiblingLink');
 const { computeEffectiveSurname, computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
 const { computeSearchKey } = require('../utils/personSearch');
 const { t } = require('../lang');
@@ -27,6 +28,7 @@ const RELATION_LABELS = {
   mother: 'Anne',
   child: 'Çocuk',
   spouse: 'Eş',
+  sibling: 'Kardeş (ebeveyn bilinmeden)',
 };
 
 async function getSpousesOf(personId) {
@@ -81,6 +83,8 @@ router.post('/:id/iliski-baglantisi', requireRelationshipManageAccess('id'), asy
   try {
     if (type === 'spouse') {
       await linkSpouse(anchorId, selectedPersonId, anchorGender, otherGender);
+    } else if (type === 'sibling') {
+      await linkSibling(anchorId, selectedPersonId);
     } else {
       await linkParentChild(type, anchorId, selectedPersonId, parentSide, otherParentId);
     }
@@ -178,6 +182,8 @@ router.post('/:id/iliski-yeni-kisi', requireRelationshipManageAccess('id'), asyn
 
     if (type === 'spouse') {
       await linkSpouse(anchorId, newPerson._id, anchorGender, gender);
+    } else if (type === 'sibling') {
+      await linkSibling(anchorId, newPerson._id);
     } else {
       await linkParentChild(type, anchorId, newPerson._id, parentSide, otherParentId);
     }
@@ -289,6 +295,29 @@ async function linkParentChild(type, anchorId, otherPersonId, chosenParentSide, 
  * marriedLastName değiştiğinde nameKey/slug ve searchKey de yeniden
  * hesaplanır (evlilik soyadı artık aramada bulunabilir olsun diye).
  */
+/**
+ * Ebeveyn bilinmese de iki kişiyi doğrudan "kardeş" olarak bağlar
+ * (bkz. models/SiblingLink.js). Araştırmalarda anne/baba bulunamayan
+ * ama kardeş olduğundan emin olunan kişiler için.
+ */
+async function linkSibling(anchorId, otherPersonId) {
+  if (String(anchorId) === String(otherPersonId)) {
+    throw new Error('Bir kişi kendisiyle ilişkilendirilemez.');
+  }
+
+  const existing = await SiblingLink.findOne({
+    $or: [
+      { personAId: anchorId, personBId: otherPersonId },
+      { personAId: otherPersonId, personBId: anchorId },
+    ],
+  });
+  if (existing) {
+    throw new Error('Bu kardeşlik bağı zaten kayıtlı.');
+  }
+
+  await SiblingLink.create({ personAId: anchorId, personBId: otherPersonId });
+}
+
 async function linkSpouse(anchorId, otherPersonId, anchorGenderOverride, otherGenderOverride) {
   if (String(anchorId) === String(otherPersonId)) {
     throw new Error('Bir kişi kendisiyle ilişkilendirilemez.');
@@ -374,6 +403,19 @@ router.post('/:id/iliski-kaldir/es/:spouseId', requireRelationshipManageAccess('
     $or: [
       { personAId: id, personBId: spouseId },
       { personAId: spouseId, personBId: id },
+    ],
+  });
+  res.redirect(`/kisiler/${id}/duzenle`);
+});
+
+// Doğrudan (ebeveynsiz) kardeşlik bağını kaldır
+router.post('/:id/iliski-kaldir/kardes/:siblingId', requireRelationshipManageAccess('id'), async (req, res) => {
+  const { id, siblingId } = req.params;
+
+  await SiblingLink.findOneAndDelete({
+    $or: [
+      { personAId: id, personBId: siblingId },
+      { personAId: siblingId, personBId: id },
     ],
   });
   res.redirect(`/kisiler/${id}/duzenle`);

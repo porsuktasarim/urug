@@ -3,6 +3,7 @@ const Person = require('../models/Person');
 const FamilyGroup = require('../models/FamilyGroup');
 const AttributeDefinition = require('../models/AttributeDefinition');
 const ParentChild = require('../models/ParentChild');
+const SiblingLink = require('../models/SiblingLink');
 const Union = require('../models/Union');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
 const { computeEffectiveSurname, computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
@@ -388,7 +389,8 @@ router.get('/:id/duzenle', requireLogin, requirePersonEditAccess('id'), async (r
     ParentChild,
     person._id,
     fatherPerson ? fatherPerson._id : null,
-    motherPerson ? motherPerson._id : null
+    motherPerson ? motherPerson._id : null,
+    SiblingLink
   );
 
   // Eş(ler) — çoklu evlilik desteklenir, birden fazla Union kaydı olabilir.
