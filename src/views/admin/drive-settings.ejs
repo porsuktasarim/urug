@@ -1,61 +1,88 @@
 <%- include('../partials/header', { title: 'Google Drive', t }) %>
 
-  <div style="max-width: 480px;">
-    <h1 class="h4 mb-4">Google Drive Bağlantısı</h1>
+  <div style="max-width: 560px;">
+    <h1 class="h4 mb-4">Google Drive Bağlantıları</h1>
 
     <% if (errorMessage) { %>
       <div class="alert alert-danger"><%= errorMessage %></div>
     <% } %>
 
+    <h2 class="h6 text-muted">1. OAuth İstemci Kimliği</h2>
     <p class="text-muted small">
-      Google Drive'a bağlanabilirsin — bağlanmak, hemen kullanılmaya başlanacağı
-      anlamına gelmez. Bağlandıktan sonra aşağıdan neyin Drive'a gideceğini
-      ayrı ayrı seçebilirsin (sadece görseller, sadece yedekler, ikisi de,
-      ya da hiçbiri — ileride lazım olursa diye bağlı bırakabilirsin).
+      Google Cloud Console'dan alınan bilgiler — artık <code>.env</code> dosyasına
+      gerek yok, buradan girebilirsin.
+      <% if (hasEnvCredentials && !(oauthCredentials && oauthCredentials.clientId)) { %>
+        (Şu an <code>.env</code>'deki değerler kullanılıyor, aşağıya girersen onun yerine bunlar geçerli olur.)
+      <% } %>
+    </p>
+    <form action="/ayarlar/drive/kimlik-bilgileri" method="POST" class="border rounded p-3 mb-4">
+      <div class="mb-2">
+        <label class="form-label small">Client ID</label>
+        <input type="text" name="clientId" class="form-control form-control-sm" required
+               value="<%= oauthCredentials && oauthCredentials.clientId ? oauthCredentials.clientId : '' %>">
+      </div>
+      <div class="mb-2">
+        <label class="form-label small">Client Secret <span class="text-muted">(zaten girilmişse boş bırakırsan değişmez)</span></label>
+        <input type="password" name="clientSecret" class="form-control form-control-sm"
+               placeholder="<%= oauthCredentials && oauthCredentials.clientSecretEncrypted ? '••••••••' : '' %>">
+      </div>
+      <div class="mb-2">
+        <label class="form-label small">Yönlendirme Adresi (Redirect URI)</label>
+        <input type="text" name="redirectUri" class="form-control form-control-sm" required
+               placeholder="https://siten.com/ayarlar/drive/callback"
+               value="<%= oauthCredentials && oauthCredentials.redirectUri ? oauthCredentials.redirectUri : '' %>">
+        <div class="form-text">Google Cloud Console'da "Authorized redirect URIs" listesine BİREBİR aynısını eklemelisin.</div>
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">Kaydet</button>
+    </form>
+
+    <h2 class="h6 text-muted">2. Bağlı Hesaplar</h2>
+    <p class="text-muted small">
+      Birden fazla hesap bağlayabilirsin. Görsel yüklemeleri her zaman
+      <strong>birincil</strong> işaretli TEK bir hesaba gider. Yedekleme
+      için birden fazla hesap aynı anda işaretlenebilir (yedeklilik için).
     </p>
 
-    <% if (config && config.connected) { %>
-      <div class="alert alert-success">
-        <strong>Bağlı</strong><br>
-        <% if (config.driveAccountEmail) { %>Hesap: <%= config.driveAccountEmail %><br><% } %>
-        <% if (config.connectedByUsername) { %>Bağlayan: <%= config.connectedByUsername %><% } %>
-      </div>
-
-      <form action="/ayarlar/drive/kullanim-ayarlari" method="POST" class="border rounded p-3 mb-3">
-        <label class="form-label fw-semibold">Ne için kullanılsın?</label>
-        <div class="form-check mb-2">
-          <input type="checkbox" name="useForImages" class="form-check-input" id="useForImages"
-                 <%= config.useForImages ? 'checked' : '' %>>
-          <label class="form-check-label" for="useForImages">
-            Fotoğraf yüklemeleri (aile/kişi görselleri Drive'a gitsin)
-          </label>
-        </div>
-        <div class="form-check mb-2">
-          <input type="checkbox" name="useForBackups" class="form-check-input" id="useForBackups"
-                 <%= config.useForBackups ? 'checked' : '' %>>
-          <label class="form-check-label" for="useForBackups">
-            Yedekleme <span class="text-muted small">(yedekleme sistemi henüz kurulmadı — bu ayar hazır bekliyor)</span>
-          </label>
-        </div>
-        <button type="submit" class="btn btn-sm btn-primary">Kaydet</button>
-      </form>
-
-      <form action="/ayarlar/drive/baglantiyi-kes" method="POST"
-            onsubmit="return confirm('Bağlantıyı kesersen yeni yüklemeler tekrar yerel diske yapılır. Emin misin?');">
-        <button type="submit" class="btn btn-outline-danger">Bağlantıyı Kes</button>
-      </form>
+    <% if (connections.length === 0) { %>
+      <p class="text-muted small">Henüz hiç hesap bağlanmadı.</p>
     <% } else { %>
-      <div class="alert alert-secondary">Şu an bağlı değil — fotoğraflar yerel diske yükleniyor.</div>
-      <a href="/ayarlar/drive/baglan" class="btn btn-primary">Google Drive'a Bağlan</a>
+      <div class="list-group mb-3">
+        <% connections.forEach(function (conn) { %>
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong><%= conn.label %></strong>
+                <% if (conn.driveAccountEmail) { %><span class="text-muted small ms-1">(<%= conn.driveAccountEmail %>)</span><% } %>
+                <% if (conn.isPrimaryForImages) { %>
+                  <span class="badge bg-success ms-1">Görseller için birincil</span>
+                <% } %>
+                <% if (conn.useForBackups) { %>
+                  <span class="badge bg-info text-dark ms-1">Yedeklemede kullanılıyor</span>
+                <% } %>
+              </div>
+              <form action="/ayarlar/drive/<%= conn._id %>/baglantiyi-kes" method="POST"
+                    onsubmit="return confirm('Bu bağlantıyı kesmek istediğine emin misin?');">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Bağlantıyı Kes</button>
+              </form>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <% if (!conn.isPrimaryForImages) { %>
+                <form action="/ayarlar/drive/<%= conn._id %>/birincil-yap" method="POST">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">Görseller İçin Birincil Yap</button>
+                </form>
+              <% } %>
+              <form action="/ayarlar/drive/<%= conn._id %>/yedek-kullanimi" method="POST" class="d-flex align-items-center gap-1">
+                <input type="checkbox" name="useForBackups" class="form-check-input" id="backup_<%= conn._id %>"
+                       <%= conn.useForBackups ? 'checked' : '' %> onchange="this.form.submit()">
+                <label class="form-check-label small" for="backup_<%= conn._id %>">Yedeklemede kullan</label>
+              </form>
+            </div>
+          </div>
+        <% }); %>
+      </div>
     <% } %>
 
-    <hr class="my-4">
-    <p class="text-muted small">
-      Bağlantı için önce <code>.env</code> / Coolify ortam değişkenlerinde
-      <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>,
-      <code>GOOGLE_REDIRECT_URI</code> tanımlı olmalı (Google Cloud Console'dan
-      OAuth istemci kimliği oluşturularak alınır).
-    </p>
+    <a href="/ayarlar/drive/baglan" class="btn btn-primary">+ Yeni Hesap Bağla</a>
   </div>
 
   <a href="/ayarlar" class="d-inline-block mt-3">&larr; Ayarlar</a>

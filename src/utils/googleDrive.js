@@ -1,30 +1,62 @@
 const { google } = require('googleapis');
-const DriveConfig = require('../models/DriveConfig');
+const DriveConnection = require('../models/DriveConnection');
+const GoogleOAuthCredentials = require('../models/GoogleOAuthCredentials');
+const { getSiteConfig } = require('./siteConfig');
 const { encryptTc, decryptTc } = require('./tcCrypto'); // isme aldanma — genel AES-256-GCM şifreleme
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 // "drive.file" kapsamı BİLİNÇLİ seçildi: sadece BU UYGULAMANIN oluşturduğu
 // dosyalara erişim verir, kullanıcının tüm Drive'ını görmez — en dar/güvenli kapsam.
 
-function getOAuthClient() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+/**
+ * OAuth istemci kimlik bilgilerini ÖNCE veritabanından (admin panelinden
+ * girilmiş), yoksa ortam değişkenlerinden (.env / Coolify) okur — DB
+ * her zaman öncelikli, böylece admin panelden girilen değer .env'i geçersiz
+ * kılabilir.
+ */
+async function getOAuthCredentials() {
+  const dbCreds = await GoogleOAuthCredentials.findOne();
+
+  const clientId = (dbCreds && dbCreds.clientId) || process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = dbCreds && dbCreds.clientSecretEncrypted
+    ? decryptTc(dbCreds.clientSecretEncrypted)
+    : process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = (dbCreds && dbCreds.redirectUri) || process.env.GOOGLE_REDIRECT_URI;
 
   if (!clientId || !clientSecret || !redirectUri) {
     throw new Error(
-      'GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI ortam değişkenleri tanımlı değil.'
+      'Google OAuth kimlik bilgileri tanımlı değil — Ayarlar → Google Drive üzerinden gir ya da GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI ortam değişkenlerini ayarla.'
     );
   }
 
+  return { clientId, clientSecret, redirectUri };
+}
+
+async function getOAuthClient() {
+  const { clientId, clientSecret, redirectUri } = await getOAuthCredentials();
   return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+}
+
+/**
+ * Admin panelinden girilen OAuth kimlik bilgilerini kaydeder (clientSecret şifreli).
+ */
+async function saveOAuthCredentials(clientId, clientSecret, redirectUri) {
+  let creds = await GoogleOAuthCredentials.findOne();
+  if (!creds) creds = new GoogleOAuthCredentials();
+
+  creds.clientId = clientId.trim();
+  creds.clientSecretEncrypted = encryptTc(clientSecret.trim());
+  creds.redirectUri = redirectUri.trim();
+  await creds.save();
+
+  return creds;
 }
 
 /**
  * Kullanıcıyı Google'ın izin ekranına yönlendirecek URL'i üretir.
  */
-function getAuthUrl() {
-  const oauth2Client = getOAuthClient();
+async function getAuthUrl() {
+  const oauth2Client = await getOAuthClient();
   return oauth2Client.generateAuthUrl({
     access_type: 'offline', // refresh token almak için ZORUNLU
     prompt: 'consent', // her seferinde refresh token dönmesini garanti eder
@@ -33,16 +65,18 @@ function getAuthUrl() {
 }
 
 /**
- * OAuth callback'te gelen "code" ile token değişimi yapar, refresh token'ı
- * şifreleyip DriveConfig'e kaydeder, gerekirse "Uruğ Yüklemeleri" klasörünü oluşturur.
+ * OAuth callback'te gelen "code" ile token değişimi yapar, YENİ bir
+ * DriveConnection kaydı oluşturur (mevcut bağlantıların üzerine YAZMAZ —
+ * artık birden fazla hesap bağlanabiliyor), "<Site Adı> Yüklemeleri"
+ * klasörünü oluşturur.
  */
-async function completeOAuthConnection(code, connectedByUsername) {
-  const oauth2Client = getOAuthClient();
+async function completeOAuthConnection(code, connectedByUsername, label) {
+  const oauth2Client = await getOAuthClient();
   const { tokens } = await oauth2Client.getToken(code);
 
   if (!tokens.refresh_token) {
     throw new Error(
-      'Google refresh token döndürmedi — muhtemelen daha önce bu hesap bağlanmıştı, Google hesap izinlerinden Uruğ erişimini kaldırıp tekrar dene.'
+      'Google refresh token döndürmedi — muhtemelen bu hesap daha önce bağlanmıştı, Google hesap izinlerinden Uruğ erişimini kaldırıp tekrar dene.'
     );
   }
 
@@ -51,52 +85,72 @@ async function completeOAuthConnection(code, connectedByUsername) {
   const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
   const { data: userInfo } = await oauth2.userinfo.get();
 
+  const siteConfig = await getSiteConfig();
   const drive = google.drive({ version: 'v3', auth: oauth2Client });
   const folder = await drive.files.create({
     requestBody: {
-      name: 'Uruğ Yüklemeleri',
+      name: `${siteConfig.siteName} Yüklemeleri`,
       mimeType: 'application/vnd.google-apps.folder',
     },
     fields: 'id',
   });
 
-  let config = await DriveConfig.findOne();
-  if (!config) config = new DriveConfig();
+  const existingCount = await DriveConnection.countDocuments();
 
-  config.connected = true;
-  config.connectedByUsername = connectedByUsername;
-  config.refreshTokenEncrypted = encryptTc(tokens.refresh_token);
-  config.driveAccountEmail = userInfo.email || null;
-  config.uploadsFolderId = folder.data.id;
-  await config.save();
+  const connection = await DriveConnection.create({
+    label: label && label.trim() ? label.trim() : (userInfo.email || `Bağlantı ${existingCount + 1}`),
+    connected: true,
+    connectedByUsername,
+    refreshTokenEncrypted: encryptTc(tokens.refresh_token),
+    driveAccountEmail: userInfo.email || null,
+    uploadsFolderId: folder.data.id,
+    // İlk bağlanan hesap otomatik olarak görseller için birincil olsun —
+    // sonrakiler admin panelinden elle birincil yapılabilir.
+    isPrimaryForImages: existingCount === 0,
+  });
 
-  return config;
+  return connection;
 }
 
 /**
- * Kayıtlı refresh token ile kimliği doğrulanmış bir Drive istemcisi döner.
- * Bağlantı yoksa null döner (çağıran taraf yerel diske düşmeli).
+ * Belirli bir DriveConnection için kimliği doğrulanmış bir Drive istemcisi döner.
  */
-async function getAuthenticatedDriveClient() {
-  const config = await DriveConfig.findOne();
-  if (!config || !config.connected || !config.refreshTokenEncrypted) {
+async function getAuthenticatedDriveClient(connectionId) {
+  const connection = await DriveConnection.findById(connectionId);
+  if (!connection || !connection.connected || !connection.refreshTokenEncrypted) {
     return null;
   }
 
-  const oauth2Client = getOAuthClient();
-  const refreshToken = decryptTc(config.refreshTokenEncrypted);
+  const oauth2Client = await getOAuthClient();
+  const refreshToken = decryptTc(connection.refreshTokenEncrypted);
   oauth2Client.setCredentials({ refresh_token: refreshToken });
 
-  return { drive: google.drive({ version: 'v3', auth: oauth2Client }), config };
+  return { drive: google.drive({ version: 'v3', auth: oauth2Client }), connection };
 }
 
 /**
- * Bellekteki bir dosya buffer'ını Drive'daki uploads klasörüne yükler.
+ * Görseller için BİRİNCİL olan bağlantıyı döner (yoksa null).
+ */
+async function getPrimaryImagesConnection() {
+  return DriveConnection.findOne({ connected: true, isPrimaryForImages: true });
+}
+
+/**
+ * Yedekleme için işaretlenmiş TÜM bağlantıları döner (gelecek adım —
+ * yedekleme sistemi — burayı kullanacak).
+ */
+async function getBackupConnections() {
+  return DriveConnection.find({ connected: true, useForBackups: true });
+}
+
+/**
+ * Bellekteki bir dosya buffer'ını belirtilen bağlantının uploads
+ * klasörüne yükler.
  * @returns {Promise<string>} Drive dosya id'si
  */
-async function uploadBufferToDrive(buffer, filename, mimeType) {
-  const client = await getAuthenticatedDriveClient();
-  if (!client) throw new Error('Google Drive bağlı değil.');
+async function uploadBufferToDrive(connectionId, buffer, filename, mimeType) {
+  const client = await getAuthenticatedDriveClient(connectionId);
+  if (!client) throw new Error('Belirtilen Google Drive bağlantısı geçerli değil.');
 
   const { Readable } = require('stream');
   const stream = Readable.from(buffer);
@@ -104,7 +158,7 @@ async function uploadBufferToDrive(buffer, filename, mimeType) {
   const { data } = await client.drive.files.create({
     requestBody: {
       name: filename,
-      parents: [client.config.uploadsFolderId],
+      parents: [client.connection.uploadsFolderId],
     },
     media: { mimeType, body: stream },
     fields: 'id',
@@ -115,13 +169,11 @@ async function uploadBufferToDrive(buffer, filename, mimeType) {
 
 /**
  * Bir Drive dosyasını okunabilir bir stream olarak döner — sunucu bunu
- * doğrudan HTTP response'a pipe eder (bkz. routes personPhoto/familyGroups
- * "/uploads/drive/:fileId" proxy route'u), Drive linki hiç istemciye
- * verilmez.
+ * doğrudan HTTP response'a pipe eder, Drive linki hiç istemciye verilmez.
  */
-async function getDriveFileStream(fileId) {
-  const client = await getAuthenticatedDriveClient();
-  if (!client) throw new Error('Google Drive bağlı değil.');
+async function getDriveFileStream(connectionId, fileId) {
+  const client = await getAuthenticatedDriveClient(connectionId);
+  if (!client) throw new Error('Belirtilen Google Drive bağlantısı geçerli değil.');
 
   const response = await client.drive.files.get(
     { fileId, alt: 'media' },
@@ -131,8 +183,8 @@ async function getDriveFileStream(fileId) {
   return response.data;
 }
 
-async function deleteDriveFile(fileId) {
-  const client = await getAuthenticatedDriveClient();
+async function deleteDriveFile(connectionId, fileId) {
+  const client = await getAuthenticatedDriveClient(connectionId);
   if (!client) return; // bağlantı yoksa sessizce geç
   try {
     await client.drive.files.delete({ fileId });
@@ -141,48 +193,45 @@ async function deleteDriveFile(fileId) {
   }
 }
 
-async function isDriveConnected() {
-  const config = await DriveConfig.findOne();
-  return !!(config && config.connected);
-}
-
 /**
- * "Bağlı olmak" ile "görseller için kullanılıyor olmak" AYRI şeylerdir —
- * kullanıcı bağlanıp sadece yedekler için (ya da hiçbiri için, ileride
- * lazım olur diye) kullanmayı seçebilir. Görsel yükleme akışları bu
- * fonksiyonu kullanmalı, isDriveConnected()'ı DEĞİL.
+ * "Bağlı olmak" ile "görseller için kullanılıyor olmak" AYRI şeylerdir.
+ * Görsel yükleme akışları bu fonksiyonu kullanmalı.
  */
 async function isDriveEnabledForImages() {
-  const config = await DriveConfig.findOne();
-  return !!(config && config.connected && config.useForImages);
+  const primary = await getPrimaryImagesConnection();
+  return !!primary;
+}
+
+async function isDriveEnabledForBackups() {
+  const connections = await getBackupConnections();
+  return connections.length > 0;
 }
 
 /**
- * Yedekleme sistemi (gelecek adım) bu fonksiyonu kullanacak.
+ * Bir bağlantıyı görseller için BİRİNCİL yapar — aynı anda sadece bir
+ * tanesi birincil olabileceği için diğerlerini otomatik false'a çeker.
  */
-async function isDriveEnabledForBackups() {
-  const config = await DriveConfig.findOne();
-  return !!(config && config.connected && config.useForBackups);
+async function setPrimaryImagesConnection(connectionId) {
+  await DriveConnection.updateMany({}, { isPrimaryForImages: false });
+  await DriveConnection.findByIdAndUpdate(connectionId, { isPrimaryForImages: true });
 }
 
-async function disconnectDrive() {
-  const config = await DriveConfig.findOne();
-  if (config) {
-    config.connected = false;
-    config.refreshTokenEncrypted = null;
-    await config.save();
-  }
+async function disconnectDriveConnection(connectionId) {
+  await DriveConnection.findByIdAndDelete(connectionId);
 }
 
 module.exports = {
   getAuthUrl,
   completeOAuthConnection,
+  saveOAuthCredentials,
   getAuthenticatedDriveClient,
+  getPrimaryImagesConnection,
+  getBackupConnections,
   uploadBufferToDrive,
   getDriveFileStream,
   deleteDriveFile,
-  isDriveConnected,
   isDriveEnabledForImages,
   isDriveEnabledForBackups,
-  disconnectDrive,
+  setPrimaryImagesConnection,
+  disconnectDriveConnection,
 };

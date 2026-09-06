@@ -28,10 +28,16 @@ Self-hosted aile şeceresi uygulaması.
 - **Elle kırpma**: kişi düzenleme formunda orijinal görsel üzerinde sürüklenebilir bir kutu ile farklı bir alan seçilebiliyor, orijinale dokunmadan sadece vesikalık yeniden üretiliyor
 - **Kritik bug düzeltmesi:** `relationships.routes.js` ve `personPhoto.routes.js`'teki `router.use('/:id', ...)` blanket yetki kontrolleri, aynı `/kisiler` prefix'inde mount edilmiş DİĞER router'ların route'larını da (ör. herkese açık olması gereken ağaç görüntüleme sayfasını) yanlışlıkla engelliyordu — gerçek Express testleriyle bulunup düzeltildi, artık her route kendi izin kontrolünü ayrı ayrı uyguluyor
 
-**Yeni: Google Drive'a fotoğraf yükleme (opsiyonel):**
-- `/ayarlar/drive` (globalAdmin) — Google hesabına OAuth2 ile bağlanma (en dar kapsam: `drive.file`, sadece bu uygulamanın oluşturduğu dosyalara erişim)
-- **Bağlı olmak ≠ kullanılıyor olmak** — bağlandıktan sonra "Fotoğraf yüklemeleri" ve "Yedekleme" için ayrı ayrı açıp kapatabiliyorsun (`useForImages`/`useForBackups`). Sadece bağlayıp ikisini de kapalı bırakmak da mümkün ("ileride lazım olur" senaryosu)
-- "Fotoğraf yüklemeleri" açıksa yeni yüklenen fotoğraflar (şu an sadece aile fotoğrafları) Drive'daki "Uruğ Yüklemeleri" klasörüne gidiyor, kapalıysa/bağlı değilse otomatik yerel diske düşüyor
+**Yeni: Site Ayarları (`/ayarlar/site`, globalAdmin):** site adı ve slogan — genel temada (yakında) ve Drive yükleme klasörü adında ("`<Site Adı>` Yüklemeleri") kullanılıyor.
+
+**Google Drive'a fotoğraf yükleme — artık ÇOKLU HESAP + web'den OAuth kurulumu:**
+- `/ayarlar/drive` (globalAdmin) — OAuth istemci kimliği (Client ID/Secret/Redirect URI) artık `.env`'e gerek kalmadan **web arayüzünden** girilebiliyor (DB'deki değer varsa `.env`'i geçersiz kılar, `.env` sadece ilk kurulum/fallback için kalıyor)
+- **Birden fazla Google hesabı bağlanabiliyor** — her biri bir "bağlantı" (`DriveConnection`), kendi etiketi/e-postası ile listeleniyor
+- Görsel yüklemeleri her zaman **birincil işaretli TEK bir hesaba** gider (`isPrimaryForImages`) — birincil hesabı admin panelinden değiştirebilirsin
+- Yedekleme (gelecek adım) için **birden fazla hesap aynı anda** işaretlenebilir (`useForBackups`) — yedek çeşitliliği için
+- Görsel proxy URL'i artık `/uploads/drive/<bağlantıId>/<dosyaId>` formatında — hangi hesaptan çekileceğini biliyor
+- Client Secret ve her hesabın refresh token'ı AES-256-GCM ile şifreli saklanıyor
+- **Önemli — kırılma değişikliği:** eski tekil `DriveConfig` modeli tamamen kaldırıldı, yerine `DriveConnection` (çoklu) + `GoogleOAuthCredentials` geldi. Eğer daha önce gerçekten bir hesap bağladıysan (test ettiysen), o bağlantı bu güncellemeyle görünmez olur — `/ayarlar/drive`'dan yeniden bağlaman gerekir. Henüz gerçek bir bağlantı kurulmadıysa (bu ortamdan Google'a erişilemediği için sadece kodun mantığı test edildi) etkisi yok.
 - Görüntülerken Drive linki hiç istemciye verilmiyor — kendi sunucumuz Drive'dan çekip **proxy** ile akıtıyor (`/uploads/drive/:fileId`), böylece dosyaların "herkese açık" paylaşılmasına gerek kalmıyor
 - Bağlı DEĞİLSE otomatik olarak yerel diske düşüyor (mevcut davranış, hiçbir şey bozulmuyor)
 - Refresh token AES-256-GCM ile şifreli saklanıyor (TC şifrelemesiyle aynı mekanizma)

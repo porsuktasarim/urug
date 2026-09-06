@@ -1,28 +1,29 @@
 const fs = require('fs');
 const path = require('path');
-const { isDriveEnabledForImages, uploadBufferToDrive, deleteDriveFile } = require('./googleDrive');
+const { getPrimaryImagesConnection, uploadBufferToDrive, deleteDriveFile } = require('./googleDrive');
 
 const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 
 /**
- * Sıkıştırılmış bir görsel buffer'ını Drive bağlıysa Drive'a, değilse
- * yerel diske kaydeder. Dönen URL her iki durumda da tutarlı bir formatta:
+ * Sıkıştırılmış bir görsel buffer'ını, görseller için birincil işaretli
+ * bir Drive bağlantısı varsa ORAYA, yoksa yerel diske kaydeder. Dönen
+ * URL her iki durumda da tutarlı bir formatta:
  *   - Yerel: "/uploads/families/xxxx.webp"
- *   - Drive: "/uploads/drive/<fileId>" — bu path, app.js'te kayıtlı bir
- *     proxy route tarafından yakalanıp Drive'dan akıtılıyor (bkz.
- *     routes/driveFileProxy.routes.js), gerçek Drive linki HİÇ istemciye
- *     verilmiyor.
+ *   - Drive: "/uploads/drive/<connectionId>/<fileId>" — connectionId
+ *     dahil ediliyor çünkü artık BİRDEN FAZLA Drive bağlantısı olabilir,
+ *     dosyayı geri çekerken HANGİ hesabın kimlik bilgileriyle istek
+ *     atılacağını bilmemiz gerekiyor (bkz. routes/driveFileProxy.routes.js).
  *
  * @param {Buffer} buffer
  * @param {string} filename - ör. "1234-abcd.webp"
- * @param {string} localDir - Drive bağlı değilse yazılacak yerel klasör
+ * @param {string} localDir - Drive kullanılmıyorsa yazılacak yerel klasör
  */
 async function storeImageBuffer(buffer, filename, localDir) {
-  const useDrive = await isDriveEnabledForImages();
+  const primaryConnection = await getPrimaryImagesConnection();
 
-  if (useDrive) {
-    const fileId = await uploadBufferToDrive(buffer, filename, 'image/webp');
-    return `/uploads/drive/${fileId}`;
+  if (primaryConnection) {
+    const fileId = await uploadBufferToDrive(primaryConnection._id, buffer, filename, 'image/webp');
+    return `/uploads/drive/${primaryConnection._id}/${fileId}`;
   }
 
   fs.mkdirSync(localDir, { recursive: true });
@@ -41,8 +42,9 @@ async function deleteStoredImage(url) {
   if (!url) return;
 
   if (url.startsWith('/uploads/drive/')) {
-    const fileId = url.replace('/uploads/drive/', '');
-    await deleteDriveFile(fileId);
+    const parts = url.replace('/uploads/drive/', '').split('/');
+    const [connectionId, fileId] = parts;
+    await deleteDriveFile(connectionId, fileId);
     return;
   }
 
