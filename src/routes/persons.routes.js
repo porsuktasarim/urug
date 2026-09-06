@@ -280,6 +280,7 @@ router.post('/', requireLogin, requireStandaloneCreateAccess, async (req, res) =
       person: req.body,
       familyGroups,
       dynamicAttributes,
+      formFields,
       attributeValues,
       errorMessage,
     });
