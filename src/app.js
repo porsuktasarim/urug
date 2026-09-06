@@ -26,6 +26,7 @@ const siteSettingsRouter = require('./routes/siteSettings.routes');
 const driveFileProxyRouter = require('./routes/driveFileProxy.routes');
 const treeViewRouter = require('./routes/treeView.routes');
 const familyProfileRouter = require('./routes/familyProfile.routes');
+const migrationOriginRouter = require('./routes/migrationOrigin.routes');
 
 const app = express();
 const PORT = process.env.PORT || 1207;
@@ -87,6 +88,7 @@ app.use('/kisiler', treeViewRouter);
 // "giris" gibi bir sabit route adıyla çakışabilirdi. Slug eşleşmezse
 // next() ile 404'e düşer, sabit route'lar önce eşleştiği için sorun olmaz.
 app.use('/', familyProfileRouter);
+app.use('/mubadele', migrationOriginRouter);
 
 // ÖNEMLİ: Bu route en son mount edilmeli — /:familySlug/:personSlug deseni
 // path segment sayısı bakımından diğer route'larla (ör. /aileler/new)

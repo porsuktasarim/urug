@@ -75,6 +75,15 @@ const personSchema = new mongoose.Schema(
 
     burialPlace: { type: String, trim: true, default: null }, // mezarının yeri
 
+    // Mübadele ile geldiyse (bkz. models/MigrationOrigin.js) — aynı
+    // yerden gelen birden fazla kişi AYNI kayda referans verir, "nereden
+    // nereye" bilgisi tekrar tekrar girilmez.
+    migrationOriginId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MigrationOrigin',
+      default: null,
+    },
+
     // Kişi görseli (vesikalık). photo: sabit boyuta kırpılmış/sıkıştırılmış
     // gösterim hali (bkz. config/personPhotoStorage.js). photoOriginal:
     // kırpılmamış, sadece sıkıştırılmış orijinal — kırpmayı sonradan

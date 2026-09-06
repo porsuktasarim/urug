@@ -76,6 +76,16 @@ async function ensureSystemAttributes() {
       order: 3.5,
     },
     {
+      key: 'migrationOrigin',
+      label: 'Mübadele Kaydı',
+      type: 'text',
+      isRequired: false,
+      isActive: true,
+      isSystem: true,
+      group: 'Kimlik Bilgileri',
+      order: 3.7,
+    },
+    {
       key: 'tcNumber',
       label: 'TC Kimlik No',
       type: 'text',

@@ -24,6 +24,12 @@
             <% } %>
             <% if (person.birthYear) { %> · <%= formatHistoricalYear(person.birthYear) %><% } %><% if (person.deathYear) { %> - <%= formatHistoricalYear(person.deathYear) %><% } %>
           </p>
+          <% if (typeof migrationOriginShortLabel !== 'undefined' && migrationOriginShortLabel) { %>
+            <p class="text-muted small mb-0">
+              <i class="bi bi-signpost-split"></i>
+              <a href="/mubadele/<%= migrationOriginSlug %>"><%= migrationOriginShortLabel %></a>
+            </p>
+          <% } %>
         </div>
 
         <% if (qrCodeDataUri) { %>

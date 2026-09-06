@@ -44,6 +44,13 @@ Self-hosted aile şeceresi uygulaması.
 - **Kurulum gerektiriyor:** Google Cloud Console'dan bir OAuth istemci kimliği oluşturup `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` ortam değişkenlerini eklemen lazım — detaylar `.env.example`'da
 - Not: Kişi fotoğrafları (vesikalık) henüz bu sisteme bağlanmadı, sadece aile fotoğrafları — sıradaki küçük bir adım
 
+**Yeni: Ebeveynsiz kardeş + Mübadele kaydı:**
+- Ebeveyni bilinmese de iki kişi doğrudan "kardeş" olarak bağlanabiliyor (`SiblingLink`, kişi düzenleme sayfasında "Kardeş Ekle (ebeveyn bilinmeden)")
+- **Mübadele kaydı** (`MigrationOrigin`): Osmanlı sistemi (eyalet/sancak/kaza/köy) → 1924 Türkiye sistemi (il/ilçe/kasaba/köy-mahalle) — TEK bir kayıt oluşturulup birden fazla kişiye bağlanabiliyor, tekrar yazılmıyor
+- Kişi formunda arama-ve-seç + inline "+ Yeni Yer Ekle" (fetch tabanlı, ana formu bozmadan)
+- Her mübadele kaydının kendi sayfası var (`/mubadele/:slug`) — o yerden gelen herkesi listeliyor
+- Kişi kartında kısa gösterim: "Koçoğlu → Ovacık" (linkli)
+
 **Sırada / bekleyen:**
 - **Fotoğraf üzerinde kişi etiketleme** (Facebook tarzı — görsele tıklayınca o noktada arama-ve-seç ile bir Person'a bağlama, `personTags: [{ personId, x, y }]` yüzde bazlı koordinat, görüntülerken hover/tıklayınca isim+profil linki). Not: mevcut serbest-metin `tags` alanı (ör. "düğün", "1980ler") bununla KARIŞTIRILMAMALI — o photo'nun genel etiketi, bu ise görseldeki BELİRLİ BİR KİŞİYİ işaretleme.
 - Bir referans siteye (tebakegenea.webflow.io) göre genel tema/yapı yenilenmesi

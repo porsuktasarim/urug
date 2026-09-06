@@ -205,6 +205,67 @@
                      value="<%= person && person.burialPlace ? person.burialPlace : '' %>">
             </div>
 
+          <% } else if (field.key === 'migrationOrigin') { %>
+            <div class="mb-3 border rounded p-3">
+              <label class="form-label fw-semibold">Mübadele Kaydı <span class="text-muted small fw-normal">(opsiyonel)</span></label>
+              <p class="text-muted small mb-2">
+                Aynı yerden gelen tüm aile üyeleri için TEK bir kayıt yeterli — burada ara,
+                yoksa altta yeni oluştur.
+              </p>
+
+              <input type="text" id="migrationOriginSearch" class="form-control mb-1" placeholder="Ara: ör. Selanik, Koçoğlu, Ovacık..." autocomplete="off"
+                     value="<%= typeof migrationOriginLabel !== 'undefined' && migrationOriginLabel ? migrationOriginLabel : '' %>">
+              <input type="hidden" name="migrationOriginId" id="migrationOriginId"
+                     value="<%= typeof migrationOriginIdValue !== 'undefined' && migrationOriginIdValue ? migrationOriginIdValue : '' %>">
+              <div id="migrationOriginResults" class="list-group mb-2"></div>
+
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('migrationOriginNewForm').classList.toggle('d-none');">
+                + Yeni Yer Ekle
+              </button>
+
+              <div id="migrationOriginNewForm" class="d-none mt-3 border-top pt-3">
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <label class="form-label small">Eyalet <span class="text-muted">(ör. Selanik)</span></label>
+                    <input type="text" id="newFromEyalet" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small">Sancak <span class="text-muted">(ör. Kavala)</span></label>
+                    <input type="text" id="newFromSancak" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small">Kaza <span class="text-muted">(ör. Sarışaban)</span></label>
+                    <input type="text" id="newFromKaza" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small">Köy <span class="text-muted">(ör. Koçoğlu)</span></label>
+                    <input type="text" id="newFromKoy" class="form-control form-control-sm">
+                  </div>
+                </div>
+                <div class="text-center text-muted small mb-2">↓ nereye yerleşti (1924 sistemi) ↓</div>
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <label class="form-label small">İl</label>
+                    <input type="text" id="newToIl" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small">İlçe</label>
+                    <input type="text" id="newToIlce" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small">Kasaba</label>
+                    <input type="text" id="newToKasaba" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small">Köy/Mahalle <span class="text-muted">(ör. Ovacık)</span></label>
+                    <input type="text" id="newToKoyMahalle" class="form-control form-control-sm">
+                  </div>
+                </div>
+                <button type="button" id="migrationOriginCreateBtn" class="btn btn-sm btn-primary">Bu Yeri Kaydet</button>
+                <div id="migrationOriginCreateError" class="text-danger small mt-2"></div>
+              </div>
+            </div>
+
           <% } else if (field.key === 'tcNumber') { %>
             <div class="mb-4">
               <label class="form-label">TC Kimlik No</label>
@@ -573,6 +634,84 @@
           document.getElementById('cropY').value = Math.round(boxTop * scale);
           document.getElementById('cropWidth').value = Math.round(boxDisplayWidth * scale);
           document.getElementById('cropHeight').value = Math.round(boxDisplayHeight * scale);
+        });
+      }
+    })();
+  </script>
+
+  <script>
+    // Mübadele kaydı — arama-ve-seç + inline yeni yer oluşturma (fetch ile,
+    // ana form yeniden gönderilmeden — nested <form> olamayacağı için).
+    (function () {
+      var searchInput = document.getElementById('migrationOriginSearch');
+      var hiddenId = document.getElementById('migrationOriginId');
+      var results = document.getElementById('migrationOriginResults');
+      if (!searchInput) return;
+
+      var debounceTimer = null;
+
+      searchInput.addEventListener('input', function () {
+        var q = searchInput.value.trim();
+        hiddenId.value = '';
+        clearTimeout(debounceTimer);
+        if (q.length < 2) { results.innerHTML = ''; return; }
+
+        debounceTimer = setTimeout(function () {
+          fetch('/mubadele/api/ara?q=' + encodeURIComponent(q))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              results.innerHTML = '';
+              (data.results || []).forEach(function (o) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action';
+                btn.textContent = o.label;
+                btn.addEventListener('click', function () {
+                  searchInput.value = o.shortLabel || o.label;
+                  hiddenId.value = o.id;
+                  results.innerHTML = '';
+                });
+                results.appendChild(btn);
+              });
+            });
+        }, 300);
+      });
+
+      var createBtn = document.getElementById('migrationOriginCreateBtn');
+      var createError = document.getElementById('migrationOriginCreateError');
+      if (createBtn) {
+        createBtn.addEventListener('click', function () {
+          var payload = {
+            fromEyalet: document.getElementById('newFromEyalet').value.trim(),
+            fromSancak: document.getElementById('newFromSancak').value.trim(),
+            fromKaza: document.getElementById('newFromKaza').value.trim(),
+            fromKoy: document.getElementById('newFromKoy').value.trim(),
+            toIl: document.getElementById('newToIl').value.trim(),
+            toIlce: document.getElementById('newToIlce').value.trim(),
+            toKasaba: document.getElementById('newToKasaba').value.trim(),
+            toKoyMahalle: document.getElementById('newToKoyMahalle').value.trim(),
+          };
+
+          var params = new URLSearchParams(payload).toString();
+
+          fetch('/mubadele', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+            body: params,
+          })
+            .then(function (r) {
+              if (!r.ok) return r.text().then(function (text) { throw new Error(text); });
+              return r.json();
+            })
+            .then(function (data) {
+              searchInput.value = data.shortLabel || '';
+              hiddenId.value = data.id;
+              createError.textContent = '';
+              document.getElementById('migrationOriginNewForm').classList.add('d-none');
+            })
+            .catch(function (err) {
+              createError.textContent = err.message || 'Kaydedilemedi.';
+            });
         });
       }
     })();

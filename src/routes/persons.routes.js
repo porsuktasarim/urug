@@ -4,6 +4,8 @@ const FamilyGroup = require('../models/FamilyGroup');
 const AttributeDefinition = require('../models/AttributeDefinition');
 const ParentChild = require('../models/ParentChild');
 const SiblingLink = require('../models/SiblingLink');
+const MigrationOrigin = require('../models/MigrationOrigin');
+const { getShortLabel } = require('../utils/migrationOriginDisplay');
 const Union = require('../models/Union');
 const { extractAttributeValues, validateAttributes } = require('../utils/attributeFormHelper');
 const { computeEffectiveSurname, computeNameKey, reassignSlugsForNameGroup } = require('../utils/personSlug');
@@ -263,7 +265,7 @@ function validateBase(body) {
 
 // Yeni kayıt oluşturma
 router.post('/', requireLogin, requireStandaloneCreateAccess, async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace, migrationOriginId } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -324,6 +326,7 @@ router.post('/', requireLogin, requireStandaloneCreateAccess, async (req, res) =
       deathCalendarType: deathDate.calendarType,
       deathOriginalYear: deathDate.originalYear,
       burialPlace: burialPlace && burialPlace.trim() ? burialPlace.trim() : null,
+      migrationOriginId: migrationOriginId && migrationOriginId.trim() ? migrationOriginId.trim() : null,
       gender: gender || null,
       marriedLastName: finalMarriedLastName,
       useCombinedLastName: useCombinedLastName === 'on',
@@ -412,6 +415,13 @@ router.get('/:id/duzenle', requireLogin, requirePersonEditAccess('id'), async (r
     familyLakabInheritedFromPerson = await Person.findById(familyLakabEntry.inheritedFrom);
   }
 
+  // Mübadele kaydı — form önceden doldurulsun diye.
+  let migrationOriginLabel = '';
+  if (person.migrationOriginId) {
+    const linkedOrigin = await MigrationOrigin.findById(person.migrationOriginId);
+    if (linkedOrigin) migrationOriginLabel = getShortLabel(linkedOrigin) || '';
+  }
+
   res.render('persons/form', {
     t,
     person,
@@ -430,13 +440,15 @@ router.get('/:id/duzenle', requireLogin, requirePersonEditAccess('id'), async (r
     familyLakabValue: familyLakabEntry ? familyLakabEntry.value : '',
     familyLakabInheritedFromId: familyLakabEntry ? familyLakabEntry.inheritedFrom : null,
     familyLakabInheritedFromName: familyLakabInheritedFromPerson ? displayName(familyLakabInheritedFromPerson) : '',
+    migrationOriginLabel,
+    migrationOriginIdValue: person.migrationOriginId || '',
     errorMessage: null,
   });
 });
 
 // Güncelleme
 router.post('/:id', requireLogin, requirePersonEditAccess('id'), async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace, migrationOriginId } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -503,6 +515,7 @@ router.post('/:id', requireLogin, requirePersonEditAccess('id'), async (req, res
     existing.deathCalendarType = deathDate.calendarType;
     existing.deathOriginalYear = deathDate.originalYear;
     existing.burialPlace = burialPlace && burialPlace.trim() ? burialPlace.trim() : null;
+    existing.migrationOriginId = migrationOriginId && migrationOriginId.trim() ? migrationOriginId.trim() : null;
     existing.gender = gender || null;
     existing.marriedLastName = finalMarriedLastName;
     existing.useCombinedLastName = useCombinedLastName === 'on';

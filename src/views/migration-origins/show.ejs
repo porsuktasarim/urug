@@ -1,0 +1,29 @@
+<%- include('../partials/header', { title: fromFullLabel + ' → ' + toFullLabel, t }) %>
+
+  <h1 class="h4 mb-1">Mübadele Kaydı</h1>
+  <p class="text-muted mb-4">
+    <strong>Nereden:</strong> <%= fromFullLabel %><br>
+    <strong>Nereye:</strong> <%= toFullLabel %>
+  </p>
+
+  <h2 class="h6 text-muted">Bu Kayda Bağlı Kişiler (<%= members.length %>)</h2>
+  <% if (members.length === 0) { %>
+    <p class="text-muted">Henüz kimse bu kayda bağlanmadı.</p>
+  <% } else { %>
+    <div class="list-group" style="max-width: 480px;">
+      <% members.forEach(function (p) { %>
+        <% var url = personProfileUrl(p); %>
+        <% if (url) { %>
+          <a href="<%= url %>" class="list-group-item list-group-item-action">
+            <%- displayNameHtml(p) %>
+            <% if (p.birthYear) { %><span class="text-muted small ms-1">· <%= formatHistoricalYear(p.birthYear) %></span><% } %>
+            <% if (p.familyGroupId) { %><span class="text-muted small ms-1">— <%= p.familyGroupId.name %></span><% } %>
+          </a>
+        <% } else { %>
+          <div class="list-group-item"><%- displayNameHtml(p) %></div>
+        <% } %>
+      <% }); %>
+    </div>
+  <% } %>
+
+<%- include('../partials/footer', { t }) %>

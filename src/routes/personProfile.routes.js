@@ -11,6 +11,8 @@ const { getPersonalNicknames, getFamilyLakab } = require('../utils/nicknames');
 const { personProfileUrl } = require('../utils/personLink');
 const { sortByBirthYear, childRelationLabel, getSiblings } = require('../utils/familyRelations');
 const { generateProfileQrCode } = require('../utils/qrCode');
+const MigrationOrigin = require('../models/MigrationOrigin');
+const { getShortLabel } = require('../utils/migrationOriginDisplay');
 
 const router = express.Router();
 
@@ -55,6 +57,16 @@ async function renderProfile(res, person) {
   const ownProfileUrl = personProfileUrl(person);
   const qrCodeDataUri = ownProfileUrl ? await generateProfileQrCode(ownProfileUrl) : null;
 
+  let migrationOriginShortLabel = null;
+  let migrationOriginSlug = null;
+  if (person.migrationOriginId) {
+    const linkedOrigin = await MigrationOrigin.findById(person.migrationOriginId);
+    if (linkedOrigin) {
+      migrationOriginShortLabel = getShortLabel(linkedOrigin);
+      migrationOriginSlug = linkedOrigin.slug;
+    }
+  }
+
   res.render('persons/show', {
     t,
     person,
@@ -64,6 +76,8 @@ async function renderProfile(res, person) {
     personProfileUrl,
     childRelationLabel,
     qrCodeDataUri,
+    migrationOriginShortLabel,
+    migrationOriginSlug,
     father: fatherPerson,
     mother: motherPerson,
     spouses,
