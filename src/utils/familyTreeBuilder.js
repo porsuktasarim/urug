@@ -11,14 +11,20 @@ const { sortYoungestFirst } = require('./treeBuilder');
  * "Baba: Katiloğulları Uğur Türkeli", "Eşi: Banu (Yüksel) Değirmenci").
  *
  * Kök(ler): bu ailedeki, anne VE babası da bu ailede OLMAYAN kişiler —
- * yani her "dal"ın aile içindeki en tepesi. Birden fazla kök olabilir
- * (aynı aile adını taşıyan ama akraba olduğu bilinmeyen ayrı hatlar gibi).
+ * yani her "dal"ın aile içindeki en tepesi. Birden fazla kök olabilir.
  *
- * Eğer bir kişi hem kendi soyuyla (bir dalın düğümü olarak) HEM de
- * başka birinin eşi olarak (aile-içi evlilik/kuzen evliliği) ağaçta
- * "görünecekse", ikinci durumda ayrı düğüm AÇILMAZ — bunun yerine hem
- * kendi düğümüne hem eşinin kartındaki metne "ağaçta ayrıca ... olarak
- * da yer alıyor" notu eklenir (bkz. serializer'daki duplicateNote).
+ * ÖNEMLİ (iki ebeveyn de aile içindeyse): bir çocuğun HEM babası HEM
+ * annesi bu ailedeyse (ör. aynı sülale içinde önceki bir evlilik/akrabalık),
+ * ağaç yapısı gereği çocuk sadece TEK bir ebeveynin altına (kim önce
+ * işlendiyse) yerleştirilir — ama DİĞER ebeveyn sessizce kaybolmaz:
+ * çocuğun kartına "Baba: ..." / "Anne: ..." metni olarak eklenir, VE o
+ * ebeveynin kendi düğümü de ağaçta varsa "ağaçta ayrıca yer alıyor" notu
+ * ile işaretlenir (bkz. duplicateNote).
+ *
+ * Eş için de aynı mantık: bir kişi hem kendi soyuyla (bir dalın düğümü
+ * olarak) HEM de başka birinin eşi olarak (aile-içi evlilik/kuzen
+ * evliliği) ağaçta "görünecekse", ikinci durumda ayrı düğüm AÇILMAZ —
+ * her iki tarafa da "ağaçta ayrıca ... olarak da yer alıyor" notu eklenir.
  *
  * @param {string} familyGroupId
  * @returns {Promise<Array>} kök düğümlerin dizisi: { person, extraLines, children }
@@ -52,26 +58,15 @@ async function buildFamilyTree(familyGroupId) {
 
   const nodesById = new Map();
   const visited = new Set();
+  const traversalParentOf = new Map(); // childId -> yapısal (ağaçta gösterilen) ebeveynin id'si
 
-  async function buildNode(person) {
+  async function buildNode(person, arrivedViaParentId) {
     const idStr = String(person._id);
     visited.add(idStr);
+    if (arrivedViaParentId) traversalParentOf.set(idStr, arrivedViaParentId);
 
     const node = { person, extraLines: [], children: [], _spouseRefs: [] };
     nodesById.set(idStr, node);
-
-    // Aile DIŞI ebeveyn(ler) — metin olarak.
-    const entry = parentMap.get(idStr);
-    if (entry) {
-      if (entry.fatherId && !familyMemberIds.has(entry.fatherId)) {
-        const father = await Person.findById(entry.fatherId).populate('familyGroupId');
-        if (father) node.extraLines.push({ label: 'Baba', person: father, duplicateNote: false });
-      }
-      if (entry.motherId && !familyMemberIds.has(entry.motherId)) {
-        const mother = await Person.findById(entry.motherId).populate('familyGroupId');
-        if (mother) node.extraLines.push({ label: 'Anne', person: mother, duplicateNote: false });
-      }
-    }
 
     // Eş(ler) — hepsi metin olarak eklenir; aile-içiyse ikinci geçişte
     // "ayrıca kendi soyuyla da yer alıyor" notu eklenecek.
@@ -87,7 +82,10 @@ async function buildFamilyTree(familyGroupId) {
     });
 
     // Çocuklar — SADECE bu aileye ait olanlar düğüm olarak eklenir.
-    const childLinks = await ParentChild.find({ parentId: person._id }).populate('childId');
+    const childLinks = await ParentChild.find({ parentId: person._id }).populate({
+      path: 'childId',
+      populate: { path: 'familyGroupId' },
+    });
     const inFamilyChildren = childLinks
       .map((l) => l.childId)
       .filter((c) => familyMemberIds.has(String(c._id)) && !visited.has(String(c._id)));
@@ -95,7 +93,7 @@ async function buildFamilyTree(familyGroupId) {
     const sortedChildren = sortYoungestFirst(inFamilyChildren);
     for (const child of sortedChildren) {
       if (visited.has(String(child._id))) continue; // başka bir dalda zaten işlendi
-      const childNode = await buildNode(child);
+      const childNode = await buildNode(child, idStr);
       node.children.push(childNode);
     }
 
@@ -105,12 +103,40 @@ async function buildFamilyTree(familyGroupId) {
   const rootNodes = [];
   for (const root of sortYoungestFirst(roots)) {
     if (visited.has(String(root._id))) continue;
-    rootNodes.push(await buildNode(root));
+    rootNodes.push(await buildNode(root, null));
   }
 
-  // İkinci geçiş: eş bilgilerini extraLines'a işle. Aile-içi eşler
-  // (kendi düğümü de var) için HER İKİ tarafa da "ayrıca ... olarak
-  // da yer alıyor" notu eklenir.
+  // İkinci geçiş A: her düğüm için, ağaç YAPISINDA gösterilmeyen "diğer"
+  // ebeveyni (varsa) extraLine olarak ekle — aile içi ya da dışı fark
+  // etmeksizin. Aile içiyse ve kendi düğümü varsa duplicateNote=true.
+  const personCache = new Map(allFamilyMembers.map((p) => [String(p._id), p]));
+  for (const [idStr, node] of nodesById) {
+    const entry = parentMap.get(idStr);
+    if (!entry) continue;
+
+    const traversalParentId = traversalParentOf.get(idStr) || null;
+    const candidates = [
+      { side: 'Baba', id: entry.fatherId },
+      { side: 'Anne', id: entry.motherId },
+    ].filter((c) => c.id && c.id !== traversalParentId);
+
+    for (const candidate of candidates) {
+      let otherPerson = personCache.get(candidate.id);
+      if (!otherPerson) {
+        otherPerson = await Person.findById(candidate.id).populate('familyGroupId');
+        if (otherPerson) personCache.set(candidate.id, otherPerson);
+      }
+      if (!otherPerson) continue;
+
+      node.extraLines.push({
+        label: candidate.side,
+        person: otherPerson,
+        duplicateNote: nodesById.has(candidate.id),
+      });
+    }
+  }
+
+  // İkinci geçiş B: eş bilgilerini extraLines'a işle.
   nodesById.forEach((node) => {
     node._spouseRefs.forEach((spouse) => {
       const spouseIdStr = String(spouse._id);

@@ -61,6 +61,10 @@ Self-hosted aile şeceresi uygulaması.
 - Dışarıdan gelen eşler ve aile dışı ebeveynler AYRI KUTU almaz — ilgili kişinin kartı İÇİNDE metin olarak görünür (ör. "Eşi: Banu (Yüksel) Değirmenci", "Baba: Katiloğulları Uğur Türkeli")
 - Aile-içi evlilik (kuzen evliliği vb.) nedeniyle bir kişi ağaçta birden fazla yerde görünüyorsa, HER İKİ konumda da turuncu/italik bir "ağaçta ayrıca yer alıyor" notu çıkıyor
 
+**Fix: Aile Geneli Ağaç iyileştirmeleri:**
+- **Kritik bug:** `familyTreeBuilder.js`'te çocukları çekerken `familyGroupId` iç içe (nested) populate edilmiyordu — bu, aile içindeki bazı kişilerin profil linkinin yanlış (`/kisi/...` yerine `/aile-slug/...` gerekirken) üretilip "Cannot GET" hatası vermesine yol açıyordu. Düzeltildi, aynı kalıp projede başka yerde taranıp (üç nokta daha bulundu ama ikisi zaten sadece düz metin gösterimi için kullanıldığından zararsız çıktı) doğrulandı.
+- **İki ebeveyn de aile içindeyse artık kaybolmuyor:** önceden bir çocuğun hem babası hem annesi aynı ailedeyse (ör. aynı sülale içinde bir evlilik), ağaç yapısı sadece BİRİNİ gösterip diğerini sessizce atlıyordu. Artık ağaç yapısında gösterilmeyen ebeveyn de karta "Baba: ..." / "Anne: ..." metni olarak ekleniyor, kendi düğümü varsa "ağaçta ayrıca yer alıyor" notuyla işaretleniyor — tıpkı eşler için zaten yapılan gibi.
+
 **Sırada / bekleyen:**
 - **Fotoğraf üzerinde kişi etiketleme** (Facebook tarzı — görsele tıklayınca o noktada arama-ve-seç ile bir Person'a bağlama, `personTags: [{ personId, x, y }]` yüzde bazlı koordinat, görüntülerken hover/tıklayınca isim+profil linki). Not: mevcut serbest-metin `tags` alanı (ör. "düğün", "1980ler") bununla KARIŞTIRILMAMALI — o photo'nun genel etiketi, bu ise görseldeki BELİRLİ BİR KİŞİYİ işaretleme.
 - Bir referans siteye (tebakegenea.webflow.io) göre genel tema/yapı yenilenmesi
