@@ -1,0 +1,159 @@
+<%- include('../partials/header', { title: familyGroup.name + ' — Aile Ağacı', t }) %>
+
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="h4 mb-0">Aile Ağacı — <%= familyGroup.name %></h1>
+    <a href="/<%= familyGroup.slug %>" class="btn btn-sm btn-outline-secondary">Aile Sayfasına Dön</a>
+  </div>
+
+  <div class="text-muted small mb-2">
+    Bu ailenin kayıtlı tüm bireyleri gösteriliyor (<%= rootCount %> ayrı hat/kök halinde).
+    Dışarıdan gelen eşler ve aile dışı ebeveynler ayrı kutu almaz, ilgili kişinin kartı içinde
+    yazılı olarak görünür. Turuncu vurgulu satırlar, o kişinin ağaçta BAŞKA BİR YERDE de
+    (kendi soyuyla) yer aldığını gösterir — genelde aile içi evlilik nedeniyle.
+    Fare tekerleği/pinch ile yakınlaştır, sürükleyerek kaydır.
+  </div>
+
+  <div id="treeContainer" class="border rounded bg-light" style="width:100%; height:70vh; overflow:hidden; position:relative;">
+    <svg id="treeSvg" style="width:100%; height:100%;"></svg>
+    <div id="treeNodesLayer" style="position:absolute; top:0; left:0; width:0; height:0;"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script>
+    (function () {
+      var roots = <%- rootsJson %>;
+
+      var NODE_WIDTH = 190;
+      var NODE_HEIGHT = 90;
+      var COL_GAP = 30;
+      var ROW_HEIGHT = 150;
+      var TREE_GAP = 80;
+
+      var container = document.getElementById('treeContainer');
+      var svg = d3.select('#treeSvg');
+      var nodesLayer = d3.select('#treeNodesLayer');
+      var zoomGroupSvg = svg.append('g').attr('class', 'zoom-group-svg');
+
+      var allNodes = [];
+      var allLinks = [];
+      var cumulativeXOffset = 0;
+
+      roots.forEach(function (rootData) {
+        var root = d3.hierarchy(rootData, function (d) { return d.children; });
+        var layout = d3.tree().nodeSize([NODE_WIDTH + COL_GAP, ROW_HEIGHT]);
+        layout(root);
+
+        var minXInTree = d3.min(root.descendants(), function (d) { return d.x; });
+        var maxXInTree = d3.max(root.descendants(), function (d) { return d.x; });
+        var treeWidth = maxXInTree - minXInTree;
+
+        root.each(function (d) {
+          d.screenX = d.x - minXInTree + cumulativeXOffset;
+          d.screenY = d.depth * ROW_HEIGHT;
+          allNodes.push(d);
+          if (d.parent) {
+            allLinks.push({ x1: d.parent.screenX, y1: d.parent.screenY, x2: d.screenX, y2: d.screenY });
+          }
+        });
+
+        cumulativeXOffset += treeWidth + NODE_WIDTH + TREE_GAP;
+      });
+
+      if (allNodes.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center mt-5">Bu ailede henüz kimse kayıtlı değil.</p>';
+        return;
+      }
+
+      var minX = d3.min(allNodes, function (d) { return d.screenX; }) - NODE_WIDTH;
+      var maxX = d3.max(allNodes, function (d) { return d.screenX; }) + NODE_WIDTH;
+      var minY = d3.min(allNodes, function (d) { return d.screenY; }) - NODE_HEIGHT;
+      var maxY = d3.max(allNodes, function (d) { return d.screenY; }) + NODE_HEIGHT;
+
+      var canvasWidth = maxX - minX;
+      var canvasHeight = maxY - minY;
+      var offsetX = -minX;
+      var offsetY = -minY;
+
+      zoomGroupSvg.selectAll('path.tree-link')
+        .data(allLinks)
+        .enter()
+        .append('path')
+        .attr('fill', 'none')
+        .attr('stroke', '#adb5bd')
+        .attr('stroke-width', 2)
+        .attr('d', function (d) {
+          var x1 = d.x1 + offsetX, y1 = d.y1 + offsetY;
+          var x2 = d.x2 + offsetX, y2 = d.y2 + offsetY;
+          var midY = (y1 + y2) / 2;
+          return 'M' + x1 + ',' + y1 + ' C' + x1 + ',' + midY + ' ' + x2 + ',' + midY + ' ' + x2 + ',' + y2;
+        });
+
+      nodesLayer.style('width', canvasWidth + 'px').style('height', canvasHeight + 'px');
+
+      var cards = nodesLayer.selectAll('div.tree-card')
+        .data(allNodes)
+        .enter()
+        .append('div')
+        .style('position', 'absolute')
+        .style('left', function (d) { return (d.screenX + offsetX - NODE_WIDTH / 2) + 'px'; })
+        .style('top', function (d) { return (d.screenY + offsetY - NODE_HEIGHT / 2) + 'px'; })
+        .style('width', NODE_WIDTH + 'px')
+        .style('background', '#fff')
+        .style('border-radius', '8px')
+        .style('padding', '8px 10px')
+        .style('box-shadow', '0 1px 3px rgba(0,0,0,0.15)')
+        .style('cursor', function (d) { return d.data.url ? 'pointer' : 'default'; })
+        .style('border-left', function (d) { return '4px solid ' + d.data.color; })
+        .on('click', function (event, d) {
+          if (d.data.url) window.location.href = d.data.url;
+        });
+
+      cards.each(function (d) {
+        var el = d3.select(this);
+        el.append('div')
+          .style('font-size', '0.85rem')
+          .style('font-weight', '600')
+          .html(d.data.nameHtml);
+
+        var dateParts = [];
+        if (d.data.birthLabel) dateParts.push(d.data.birthLabel);
+        if (d.data.deathLabel) dateParts.push('– ' + d.data.deathLabel);
+        if (dateParts.length > 0) {
+          el.append('div')
+            .style('font-size', '0.7rem')
+            .style('color', '#6c757d')
+            .text(dateParts.join(' '));
+        }
+
+        (d.data.extraLines || []).forEach(function (line) {
+          el.append('div')
+            .style('font-size', '0.68rem')
+            .style('color', line.duplicateNote ? '#c1622d' : '#6c757d')
+            .style('font-style', line.duplicateNote ? 'italic' : 'normal')
+            .html(
+              line.label + ': ' + line.nameHtml +
+              (line.duplicateNote ? ' <span title="Bu kişi ağaçta kendi soyuyla ayrıca yer alıyor">(ağaçta ayrıca yer alıyor)</span>' : '')
+            );
+        });
+      });
+
+      var initialScale = 0.8;
+      var zoom = d3.zoom()
+        .scaleExtent([0.15, 2.5])
+        .on('zoom', function (event) {
+          var tr = event.transform;
+          zoomGroupSvg.attr('transform', tr);
+          nodesLayer.style('transform', 'translate(' + tr.x + 'px,' + tr.y + 'px) scale(' + tr.k + ')');
+          nodesLayer.style('transform-origin', '0 0');
+        });
+
+      svg.call(zoom);
+
+      var containerRect = container.getBoundingClientRect();
+      var initialX = containerRect.width / 2 - (canvasWidth / 2) * initialScale;
+      var initialY = 40;
+      svg.call(zoom.transform, d3.zoomIdentity.translate(initialX, initialY).scale(initialScale));
+    })();
+  </script>
+
+<%- include('../partials/footer', { t }) %>

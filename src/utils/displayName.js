@@ -9,8 +9,14 @@
  * Bu ayrımı bozacak şekilde middleName'i "resmi" bir alanmış gibi
  * ele almayın (ör. TC/nüfus kaydı bağlamlarında kullanmayın).
  *
+ * ÜNVAN (title): "Kahya", "Molla", "Hoca" gibi resmi/toplumsal bir sıfat —
+ * göbek adından FARKLI, İTALİK GÖSTERİLMEZ. Ada göre önce ya da sonra
+ * gelebilir (titlePosition: 'before'|'after') — ör. "Molla Ali" (önce)
+ * vs "Hüseyin Kahya" (sonra). Ünvan, officialFirstName'in HEMEN yanına
+ * eklenir; göbek adı ve soyad her zaman bunun peşinden gelir.
+ *
  * Kişi adını görüntüleme kuralı (bkz. proje dokümanı 4.2/4.3):
- * - Sıra her zaman: Resmi Ad, (varsa) Göbek Adı, Soyad(lar)ı
+ * - Sıra her zaman: (varsa önce ünvan) Resmi Ad (varsa sonra ünvan), (varsa) Göbek Adı, Soyad(lar)ı
  * - Göbek adı varsa HTML bağlamında İTALİK gösterilir (bkz. displayNameHtml)
  * - useCombinedLastName = false → "... (KızlıkSoyadı) EvlilikSoyadı"
  * - useCombinedLastName = true  → "... KızlıkSoyadı EvlilikSoyadı"
@@ -36,13 +42,30 @@ function buildSurnameSection(person) {
 }
 
 /**
+ * Resmi ad + ünvanı (varsa, doğru konumda) birleştirir.
+ * @param {object} person
+ * @param {(s: string) => string} escapeFn - HTML bağlamında escapeHtml, düz metinde kimlik fonksiyonu
+ */
+function buildFirstNameSection(person, escapeFn) {
+  const firstName = escapeFn(person.officialFirstName);
+  if (!person.title) return firstName;
+
+  const title = escapeFn(person.title);
+  return person.titlePosition === 'before' ? `${title} ${firstName}` : `${firstName} ${title}`;
+}
+
+function identity(s) {
+  return s || '';
+}
+
+/**
  * Düz metin ad gösterimi — HTML işaretleme İÇERMEZ. <title>, JS
  * textContent, alt metin gibi HTML render edilmeyen bağlamlarda kullanılır.
  */
 function displayName(person) {
   if (!person) return '';
 
-  const parts = [person.officialFirstName];
+  const parts = [buildFirstNameSection(person, identity)];
   if (person.middleName) parts.push(person.middleName);
 
   const surnameSection = buildSurnameSection(person);
@@ -52,7 +75,8 @@ function displayName(person) {
 }
 
 /**
- * HTML gösterimi — göbek adı varsa <em> ile italik sarılır. SADECE EJS'te
+ * HTML gösterimi — göbek adı varsa <em> ile italik sarılır (ünvan İTALİK
+ * SARILMAZ, resmi bir sıfat olduğu için düz kalır). SADECE EJS'te
  * unescaped çıktı (`<%- %>`) ile, gerçek HTML render edilen bir bağlamda
  * kullanılmalı (ör. kişi kartı başlığı) — <title> etiketi veya JS
  * textContent gibi yerlerde KULLANILMAMALI (etiketler düz metin olarak görünür).
@@ -60,7 +84,7 @@ function displayName(person) {
 function displayNameHtml(person) {
   if (!person) return '';
 
-  const parts = [escapeHtml(person.officialFirstName)];
+  const parts = [buildFirstNameSection(person, escapeHtml)];
   if (person.middleName) parts.push(`<em>${escapeHtml(person.middleName)}</em>`);
 
   const surnameSection = buildSurnameSection(person);

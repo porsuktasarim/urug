@@ -42,6 +42,16 @@ async function ensureSystemAttributes() {
       order: 1.5,
     },
     {
+      key: 'title',
+      label: 'Ünvan',
+      type: 'text',
+      isRequired: false,
+      isActive: true,
+      isSystem: true,
+      group: 'Kimlik Bilgileri',
+      order: 1.7,
+    },
+    {
       key: 'officialLastName',
       label: 'Soyadı',
       type: 'text',

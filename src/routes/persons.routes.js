@@ -265,7 +265,7 @@ function validateBase(body) {
 
 // Yeni kayıt oluşturma
 router.post('/', requireLogin, requireStandaloneCreateAccess, async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace, migrationOriginId } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, title, titlePosition, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace, migrationOriginId } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -312,6 +312,8 @@ router.post('/', requireLogin, requireStandaloneCreateAccess, async (req, res) =
       familyGroupId: finalFamilyGroupId,
       officialFirstName: finalFirstName,
       middleName: middleName && middleName.trim() ? middleName.trim() : null,
+      title: title && title.trim() ? title.trim() : null,
+      titlePosition: titlePosition === 'before' ? 'before' : 'after',
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
       birthYear: birthDate.year,
@@ -335,6 +337,7 @@ router.post('/', requireLogin, requireStandaloneCreateAccess, async (req, res) =
       searchKey: computeSearchKey({
         officialFirstName: finalFirstName,
         middleName: middleName && middleName.trim() ? middleName.trim() : null,
+        title: title && title.trim() ? title.trim() : null,
         officialLastName: finalLastName,
         hasNoLastName: hasNoLastName === 'on',
         marriedLastName: finalMarriedLastName,
@@ -448,7 +451,7 @@ router.get('/:id/duzenle', requireLogin, requirePersonEditAccess('id'), async (r
 
 // Güncelleme
 router.post('/:id', requireLogin, requirePersonEditAccess('id'), async (req, res) => {
-  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace, migrationOriginId } = req.body;
+  const { officialFirstName, officialLastName, hasNoLastName, familyGroupId, middleName, title, titlePosition, gender, marriedLastName, useCombinedLastName, birthPlace, burialPlace, migrationOriginId } = req.body;
   const familyGroups = await getFamilyGroupsSorted();
   const dynamicAttributes = await getDynamicAttributeDefinitions();
   const formFields = await getOrderedFormFields();
@@ -501,6 +504,8 @@ router.post('/:id', requireLogin, requirePersonEditAccess('id'), async (req, res
     existing.familyGroupId = finalFamilyGroupId;
     existing.officialFirstName = finalFirstName;
     existing.middleName = middleName && middleName.trim() ? middleName.trim() : null;
+    existing.title = title && title.trim() ? title.trim() : null;
+    existing.titlePosition = titlePosition === 'before' ? 'before' : 'after';
     existing.officialLastName = finalLastName;
     existing.hasNoLastName = hasNoLastName === 'on';
     existing.birthYear = birthDate.year;
@@ -524,6 +529,7 @@ router.post('/:id', requireLogin, requirePersonEditAccess('id'), async (req, res
     existing.searchKey = computeSearchKey({
       officialFirstName: finalFirstName,
       middleName: middleName && middleName.trim() ? middleName.trim() : null,
+      title: title && title.trim() ? title.trim() : null,
       officialLastName: finalLastName,
       hasNoLastName: hasNoLastName === 'on',
       marriedLastName: finalMarriedLastName,

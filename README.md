@@ -51,10 +51,19 @@ Self-hosted aile şeceresi uygulaması.
 - Her mübadele kaydının kendi sayfası var (`/mubadele/:slug`) — o yerden gelen herkesi listeliyor
 - Kişi kartında kısa gösterim: "Koçoğlu → Ovacık" (linkli)
 
+**Yeni: Ünvan (unvan) alanı:**
+- `Person.title` + `titlePosition` ('before'/'after') — "Molla Ali" (ünvan önce) veya "Hüseyin Kahya" (ünvan sonra) gibi, ada göre esnek konumlanıyor
+- Göbek adından farklı: italik GÖSTERİLMEZ, resmi bir sıfat/meslek/toplumsal konum olarak düz yazılır
+- Aramaya dahil, formda konum seçilebilir bir alan olarak var
+
+**Yeni: Aile Geneli Ağaç (`/aileler/:id/agac`):**
+- Kişi bazlı odaklı ağaçtan farklı — bir AİLENİN TÜM üyelerini gösterir, birden fazla "kök"/hat halinde
+- Dışarıdan gelen eşler ve aile dışı ebeveynler AYRI KUTU almaz — ilgili kişinin kartı İÇİNDE metin olarak görünür (ör. "Eşi: Banu (Yüksel) Değirmenci", "Baba: Katiloğulları Uğur Türkeli")
+- Aile-içi evlilik (kuzen evliliği vb.) nedeniyle bir kişi ağaçta birden fazla yerde görünüyorsa, HER İKİ konumda da turuncu/italik bir "ağaçta ayrıca yer alıyor" notu çıkıyor
+
 **Sırada / bekleyen:**
 - **Fotoğraf üzerinde kişi etiketleme** (Facebook tarzı — görsele tıklayınca o noktada arama-ve-seç ile bir Person'a bağlama, `personTags: [{ personId, x, y }]` yüzde bazlı koordinat, görüntülerken hover/tıklayınca isim+profil linki). Not: mevcut serbest-metin `tags` alanı (ör. "düğün", "1980ler") bununla KARIŞTIRILMAMALI — o photo'nun genel etiketi, bu ise görseldeki BELİRLİ BİR KİŞİYİ işaretleme.
 - Bir referans siteye (tebakegenea.webflow.io) göre genel tema/yapı yenilenmesi
-- Genel/tüm-kayıtlı-kişileri-gösteren ağaç görünümü (şu an sadece kişi bazlı odaklı ağaç var)
 - A0 rulo PDF export, ana sayfa özet blokları, RSS/XML, yedekleme sistemi
 
 ## Ortam Değişkenleri

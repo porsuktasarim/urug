@@ -39,6 +39,20 @@ const personSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    // Ünvan — "Kahya", "Molla", "Hoca" gibi. Adın öncesinde ya da sonrasında
+    // görünebilir (ör. "Molla Ali" vs "Hüseyin Kahya") — titlePosition bunu
+    // belirler. Göbek adından farklı: resmi bir sıfat/meslek/toplumsal
+    // konum belirtir, italik GÖSTERİLMEZ (bkz. utils/displayName.js).
+    title: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    titlePosition: {
+      type: String,
+      enum: ['before', 'after'],
+      default: 'after',
+    },
     officialLastName: {
       type: String,
       trim: true,

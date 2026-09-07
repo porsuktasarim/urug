@@ -113,6 +113,22 @@
               </div>
             </div>
 
+          <% } else if (field.key === 'title') { %>
+            <div class="mb-3">
+              <label class="form-label">Ünvan <span class="text-muted small">(opsiyonel — ör. Kahya, Molla, Hoca)</span></label>
+              <div class="d-flex gap-2">
+                <select name="titlePosition" class="form-select" style="max-width:140px;">
+                  <option value="before" <%= person && person.titlePosition === 'before' ? 'selected' : '' %>>Addan önce</option>
+                  <option value="after" <%= !person || !person.titlePosition || person.titlePosition === 'after' ? 'selected' : '' %>>Addan sonra</option>
+                </select>
+                <input type="text" name="title" class="form-control"
+                       value="<%= person && person.title ? person.title : '' %>">
+              </div>
+              <div class="form-text">
+                Ör: "Molla" + addan önce → <em>Molla Ali</em>. "Kahya" + addan sonra → <em>Hüseyin Kahya</em>.
+              </div>
+            </div>
+
           <% } else if (field.key === 'officialLastName') { %>
             <div class="mb-3">
               <label class="form-label"><%= t('person.fields.officialLastName') %></label>

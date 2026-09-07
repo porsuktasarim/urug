@@ -12,6 +12,7 @@ const { migrateFamilyColors } = require('./config/migrateFamilyColors');
 const { migrateMembershipRoles } = require('./config/migrateMembershipRoles');
 const { t } = require('./lang');
 const familyGroupsRouter = require('./routes/familyGroups.routes');
+const familyTreeViewRouter = require('./routes/familyTreeView.routes');
 const attributeDefinitionsRouter = require('./routes/attributeDefinitions.routes');
 const personsRouter = require('./routes/persons.routes');
 const relationshipsRouter = require('./routes/relationships.routes');
@@ -72,6 +73,7 @@ app.get('/', (req, res) => {
 
 app.use('/', authRouter);
 app.use('/aileler', familyGroupsRouter);
+app.use('/aileler', familyTreeViewRouter);
 app.use('/admin/ozellikler', attributeDefinitionsRouter);
 app.use('/admin/kullanicilar', userManagementRouter);
 app.use('/ayarlar', settingsRouter);
